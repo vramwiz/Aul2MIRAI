@@ -17,6 +17,7 @@ implementation
 
 uses
   Winapi.Windows,
+  System.Hash,
   System.SysUtils,
   Aul2MIRAIObjectAlias,
   Aul2MIRAIObjectClassifier,
@@ -24,6 +25,8 @@ uses
 
 const
   MAX_OBJECT_COUNT = 100000;
+  MAX_EFFECT_COUNT = 256;
+  MAX_SECTION_COUNT = 4096;
 
 type
   TObjectReadContext = class
@@ -58,6 +61,122 @@ begin
   Result := string(Value);
 end;
 
+function ReadLayerStates(Edit: PEditSection;
+  var Snapshot: TAul2MIRAISceneSnapshot; out ErrorMessage: string): Boolean;
+var
+  I: Integer;
+begin
+  if Snapshot.LayerMax < 0 then
+  begin
+    SetLength(Snapshot.Layers, 0);
+    Exit(True);
+  end;
+  SetLength(Snapshot.Layers, Snapshot.LayerMax + 1);
+  for I := 0 to Snapshot.LayerMax do
+  begin
+    Snapshot.Layers[I].Index := I;
+    Snapshot.Layers[I].Name := CopyWideText(Edit^.GetLayerName(I));
+    Snapshot.Layers[I].StateAvailable :=
+      Assigned(Edit^.GetLayerEnable) and Assigned(Edit^.GetLayerLock);
+    if Snapshot.Layers[I].StateAvailable then
+    begin
+      Snapshot.Layers[I].Enabled := Edit^.GetLayerEnable(I) <> False;
+      Snapshot.Layers[I].Locked := Edit^.GetLayerLock(I) <> False;
+    end;
+  end;
+  Result := True;
+end;
+
+function ReadObjectSections(Edit: PEditSection; Obj: TObjectHandle;
+  Focused: Boolean; var Info: TAul2MIRAIObjectInfo;
+  out ErrorMessage: string): Boolean;
+var
+  Count: Integer;
+  I    : Integer;
+begin
+  Result := False;
+  Info.FocusedSection := -1;
+  if not Assigned(Edit^.GetObjectSectionNum) or
+     not Assigned(Edit^.GetObjectSectionFrame) or
+     not Assigned(Edit^.GetFocusObjectSection) then
+  begin
+    SetLength(Info.SectionFrames, 0);
+    Exit(True);
+  end;
+  Count := Edit^.GetObjectSectionNum(Obj);
+  if (Count < 0) or (Count > MAX_SECTION_COUNT) then
+  begin
+    ErrorMessage := Format('Invalid object section count: %d.', [Count]);
+    Exit;
+  end;
+  SetLength(Info.SectionFrames, Count);
+  for I := 0 to Count - 1 do
+  begin
+    Info.SectionFrames[I] := Edit^.GetObjectSectionFrame(Obj, I);
+    if Info.SectionFrames[I] < 0 then
+    begin
+      ErrorMessage := Format('Failed to read object section %d.', [I]);
+      Exit;
+    end;
+  end;
+  if Focused then
+    Info.FocusedSection := Edit^.GetFocusObjectSection;
+  Result := True;
+end;
+
+function ReadEffectStates(Edit: PEditSection; Obj: TObjectHandle;
+  var Info: TAul2MIRAIObjectInfo; out ErrorMessage: string): Boolean;
+var
+  Count  : Integer;
+  Handles: TArray<Pointer>;
+  I      : Integer;
+begin
+  Result := False;
+  if not Assigned(Edit^.GetEffectList) or
+     not Assigned(Edit^.GetEffectName) or
+     not Assigned(Edit^.GetEffectEnable) or
+     not Assigned(Edit^.GetEffectLock) then
+  begin
+    SetLength(Info.EffectStates, 0);
+    Exit(True);
+  end;
+  Count := Edit^.GetEffectList(Obj, nil, 0);
+  if (Count < 0) or (Count > MAX_EFFECT_COUNT) then
+  begin
+    ErrorMessage := Format('Invalid effect count: %d.', [Count]);
+    Exit;
+  end;
+  SetLength(Handles, Count);
+  if Count > 0 then
+  begin
+    Count := Edit^.GetEffectList(Obj, @Handles[0], Count);
+    if (Count < 0) or (Count > Length(Handles)) then
+    begin
+      ErrorMessage := 'AviUtl2 returned an invalid effect list.';
+      Exit;
+    end;
+    SetLength(Handles, Count);
+  end;
+  SetLength(Info.EffectStates, Count);
+  for I := 0 to Count - 1 do
+  begin
+    Info.EffectStates[I].Name := CopyWideText(
+      Edit^.GetEffectName(Handles[I]));
+    Info.EffectStates[I].Enabled :=
+      Edit^.GetEffectEnable(Handles[I]) <> False;
+    Info.EffectStates[I].Locked :=
+      Edit^.GetEffectLock(Handles[I]) <> False;
+    if (I <= High(Info.EffectDetails)) and
+       (Info.EffectDetails[I].Name = Info.EffectStates[I].Name) then
+    begin
+      Info.EffectDetails[I].StateAvailable := True;
+      Info.EffectDetails[I].Enabled := Info.EffectStates[I].Enabled;
+      Info.EffectDetails[I].Locked := Info.EffectStates[I].Locked;
+    end;
+  end;
+  Result := True;
+end;
+
 procedure ReadSceneCallback(Param: Pointer; Edit: PEditSection); cdecl;
 var
   AliasText      : string;                       // コピーしたオブジェクトエイリアス
@@ -90,6 +209,10 @@ begin
     end;
     Context.Snapshot.SelectedCount := Length(Selected);
 
+    if not ReadLayerStates(Edit, Context.Snapshot,
+      Context.ErrorMessage) then
+      Exit;
+
     if Context.Snapshot.LayerMax < 0 then
       Exit;
 
@@ -114,6 +237,7 @@ begin
         end;
 
         Info := Default(TAul2MIRAIObjectInfo);
+        Info.FocusedSection := -1;
         Info.Index := ObjectCount;
         Info.Layer := LayerFrame.Layer;
         Info.StartFrame := LayerFrame.StartFrame;
@@ -126,11 +250,18 @@ begin
         Info.ObjectType := ClassifyObjectType(Info.PrimaryEffect);
         Info.MaterialPath := ExtractMaterialPath(AliasText);
         Info.Effects := ExtractEffectNames(AliasText);
+        Info.ContentDigest := LowerCase(THashSHA2.GetHashString(AliasText));
         if Context.IncludeSelectedDetails and
            (Info.Selected or
             ((Info.StartFrame <= Context.Snapshot.CursorFrame) and
              (Info.EndFrame >= Context.Snapshot.CursorFrame))) then
           Info.EffectDetails := ExtractEffectDetails(AliasText);
+        if not ReadObjectSections(Edit, Obj, Info.Focused, Info,
+          Context.ErrorMessage) then
+          Exit;
+        if not ReadEffectStates(Edit, Obj, Info,
+          Context.ErrorMessage) then
+          Exit;
         AppendObject(Objects, ObjectCount, Info);
 
         if ObjectCount >= MAX_OBJECT_COUNT then

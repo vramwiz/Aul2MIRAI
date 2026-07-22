@@ -158,6 +158,33 @@ type
     SetSceneSize: procedure(Width, Height: Integer); cdecl;
     SetSceneFrameRate: procedure(Rate, Scale: Integer); cdecl;
     SetSceneSampleRate: procedure(SampleRate: Integer); cdecl;
+
+    { 18. AviUtl2 v2.10 detailed read and effect APIs }
+    GetLayerEnable: function(Layer: Integer): BOOL; cdecl;
+    SetLayerEnable: procedure(Layer: Integer; Enable: BOOL); cdecl;
+    GetLayerLock: function(Layer: Integer): BOOL; cdecl;
+    SetLayerLock: procedure(Layer: Integer; Locked: BOOL); cdecl;
+    GetObjectSectionNum: function(Obj: TObjectHandle): Integer; cdecl;
+    GetFocusObjectSection: function(): Integer; cdecl;
+    GetObjectSectionFrame: function(Obj: TObjectHandle;
+      Section: Integer): Integer; cdecl;
+    GetObjectTrackValue: Pointer;
+    GetObjectCheckValue: Pointer;
+    GetObjectTrackInfo: Pointer;
+    GetPaletteName: Pointer;
+    GetPaletteInfo: Pointer;
+    GetFont: Pointer;
+    GetObjectTrackGroupNames: Pointer;
+    DeprecatedGetGridBpmList: Pointer;
+    DeprecatedSetGridBpmList: Pointer;
+    FindEffect: Pointer;
+    GetEffectList: function(Obj: TObjectHandle; EffectList: PPointer;
+      EffectNum: Integer): Integer; cdecl;
+    GetEffectName: function(Effect: Pointer): LPCWSTR; cdecl;
+    GetEffectEnable: function(Effect: Pointer): BOOL; cdecl;
+    SetEffectEnable: Pointer;
+    GetEffectLock: function(Effect: Pointer): BOOL; cdecl;
+    SetEffectLock: Pointer;
   end;
 
 

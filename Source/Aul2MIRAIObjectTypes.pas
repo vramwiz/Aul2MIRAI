@@ -5,6 +5,20 @@ unit Aul2MIRAIObjectTypes;
 interface
 
 type
+  TAul2MIRAILayerInfo = record
+    Index   : Integer;
+    Name    : string;
+    StateAvailable: Boolean;
+    Enabled : Boolean;
+    Locked  : Boolean;
+  end;
+
+  TAul2MIRAIEffectState = record
+    Name    : string;
+    Enabled : Boolean;
+    Locked  : Boolean;
+  end;
+
   TAul2MIRAIParameterInfo = record
     Name      : string;  // エイリアス内の設定項目名
     Value     : string;  // エイリアス内の文字列表現
@@ -13,6 +27,9 @@ type
 
   TAul2MIRAIEffectDetail = record
     Name       : string;
+    StateAvailable: Boolean;
+    Enabled    : Boolean;
+    Locked     : Boolean;
     Parameters : TArray<TAul2MIRAIParameterInfo>;
   end;
 
@@ -29,6 +46,10 @@ type
     MaterialPath  : string;  // エイリアスにファイル項目がある場合の素材パス
     Effects       : TArray<string>; // 適用されているeffect.name一覧
     EffectDetails : TArray<TAul2MIRAIEffectDetail>; // 詳細要求時の設定一覧
+    EffectStates  : TArray<TAul2MIRAIEffectState>; // 全エフェクトの有効・ロック状態
+    SectionFrames : TArray<Integer>; // 各区間（中間点を含む）の開始フレーム
+    FocusedSection: Integer; // 選択中の区間番号。対象外は-1
+    ContentDigest : string;  // エイリアス内容のSHA-256
   end;
 
   TAul2MIRAISceneSnapshot = record
@@ -42,6 +63,7 @@ type
     SelectedCount : Integer; // 選択オブジェクト数
     ElapsedMs     : UInt64;  // 読み取り要求全体の経過時間
     Objects       : TArray<TAul2MIRAIObjectInfo>; // コピー済みオブジェクト一覧
+    Layers        : TArray<TAul2MIRAILayerInfo>; // レイヤー名・表示・ロック状態
   end;
 
 implementation

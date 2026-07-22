@@ -11,22 +11,434 @@ implementation
 uses
   System.SysUtils,
   AviUtl2PluginCore,
+  Aul2MIRAIEditPosition,
+  Aul2MIRAIEditPositionWriter,
   Aul2MIRAIEditStateReader,
   Aul2MIRAIEditStateTypes,
   Aul2MIRAIObjectFormat,
+  Aul2MIRAIObjectDuplicate,
+  Aul2MIRAIObjectDuplicator,
+  Aul2MIRAIObjectMove,
+  Aul2MIRAIObjectMover,
   Aul2MIRAIObjectQuery,
   Aul2MIRAIObjectReader,
   Aul2MIRAIObjectTypes,
+  Aul2MIRAIParameterBatch,
+  Aul2MIRAIParameterPreview,
+  Aul2MIRAIParameterWriter,
   Aul2MIRAIProtocol,
+  Aul2MIRAISnapshotIdentity,
   Aul2MIRAIView;
+
+function HandleEditPositionRequest(const RequestText,
+  Command: string): string;
+var
+  AfterEditState : TAul2MIRAIEditState;
+  AfterIdentity  : TAul2MIRAISnapshotIdentity;
+  AfterSnapshot  : TAul2MIRAISceneSnapshot;
+  BeforeIdentity : TAul2MIRAISnapshotIdentity;
+  CursorFrame    : Integer;
+  CursorLayer    : Integer;
+  EditState      : TAul2MIRAIEditState;
+  ErrorCode      : string;
+  ErrorMessage   : string;
+  Preview        : TAul2MIRAIEditPositionPreview;
+  RequireApply   : Boolean;
+  SelectEnd      : Integer;
+  SelectStart    : Integer;
+  SetCursor      : Boolean;
+  SetSelection   : Boolean;
+  Snapshot       : TAul2MIRAISceneSnapshot;
+  StateToken     : string;
+begin
+  RequireApply := SameText(Command, AUL2MIRAI_COMMAND_SET_EDIT_POSITION);
+  if not ParseEditPositionRequest(RequestText, RequireApply, StateToken,
+    SetCursor, CursorLayer, CursorFrame, SetSelection, SelectStart,
+    SelectEnd, ErrorCode, ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External position request rejected', '',
+      'WARN', ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+  if not ReadCurrentEditState(EditHandle, EditState, ErrorMessage) then
+    Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+  if not ReadCurrentSceneObjects(EditHandle, Snapshot, ErrorMessage) then
+    Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+  BeforeIdentity := CreateSnapshotIdentity(EditState, Snapshot);
+  if not SameText(StateToken, BeforeIdentity.StateToken) then
+  begin
+    QueueMIRAIViewUpdate('External position rejected - state changed', '',
+      'WARN', Command + ': state_changed');
+    Exit(BuildStateChangedError(Command, StateToken, BeforeIdentity));
+  end;
+  if not CreateEditPositionPreview(EditState, SetCursor, CursorLayer,
+    CursorFrame, SetSelection, SelectStart, SelectEnd, Preview, ErrorCode,
+    ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External position request rejected', '',
+      'WARN', ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+  if not RequireApply then
+  begin
+    QueueMIRAIViewUpdate('Edit position preview', '', 'OK',
+      Format('%s -> cursor %d:%d, selection %d-%d',
+        [Command, Preview.AfterCursorLayer, Preview.AfterCursorFrame,
+         Preview.AfterSelectStart, Preview.AfterSelectEnd]));
+    Exit(BuildEditPositionPreviewResponse(Preview, BeforeIdentity));
+  end;
+  if not Preview.CursorWillChange and
+     not Preview.SelectionWillChange then
+  begin
+    QueueMIRAIViewUpdate('Edit position skipped - unchanged', '', 'OK',
+      Format('%s -> no change', [Command]));
+    Exit(BuildEditPositionResponse(Preview, BeforeIdentity,
+      BeforeIdentity));
+  end;
+  if not ApplyEditPosition(EditHandle, Preview, ErrorCode,
+    ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External position change failed', '', 'ERROR',
+      ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+  if not ReadCurrentEditState(EditHandle, AfterEditState,
+    ErrorMessage) then
+    Exit(BuildProtocolError(Command, 'post_write_read_failed',
+      ErrorMessage));
+  if not ReadCurrentSceneObjects(EditHandle, AfterSnapshot,
+    ErrorMessage) then
+    Exit(BuildProtocolError(Command, 'post_write_read_failed',
+      ErrorMessage));
+  if (Preview.SetCursor and
+      ((AfterEditState.CursorLayer <> Preview.AfterCursorLayer) or
+       (AfterEditState.CursorFrame <> Preview.AfterCursorFrame))) or
+     (Preview.SetSelection and
+      ((AfterEditState.SelectRangeStart <> Preview.AfterSelectStart) or
+       (AfterEditState.SelectRangeEnd <> Preview.AfterSelectEnd))) then
+  begin
+    ErrorMessage :=
+      'The edit position read after the change did not match the request.';
+    Exit(BuildProtocolError(Command, 'post_write_verification_failed',
+      ErrorMessage));
+  end;
+  AfterIdentity := CreateSnapshotIdentity(AfterEditState, AfterSnapshot);
+  QueueMIRAIViewUpdate('Edit position changed', '', 'OK',
+    Format('%s -> cursor %d:%d, selection %d-%d',
+      [Command, AfterEditState.CursorLayer, AfterEditState.CursorFrame,
+       AfterEditState.SelectRangeStart, AfterEditState.SelectRangeEnd]));
+  Result := BuildEditPositionResponse(Preview, BeforeIdentity,
+    AfterIdentity);
+end;
+
+function HandleObjectDuplicateRequest(const RequestText,
+  Command: string): string;
+var
+  AfterEditState : TAul2MIRAIEditState;
+  AfterIdentity  : TAul2MIRAISnapshotIdentity;
+  AfterSnapshot  : TAul2MIRAISceneSnapshot;
+  BeforeIdentity : TAul2MIRAISnapshotIdentity;
+  CreatedIndices : TArray<Integer>;
+  Duplicates     : TArray<TAul2MIRAIObjectDuplicateRequest>;
+  EditState      : TAul2MIRAIEditState;
+  ErrorCode      : string;
+  ErrorMessage   : string;
+  Previews       : TArray<TAul2MIRAIObjectDuplicatePreview>;
+  RequireApply   : Boolean;
+  Snapshot       : TAul2MIRAISceneSnapshot;
+  StateToken     : string;
+begin
+  RequireApply := SameText(Command, AUL2MIRAI_COMMAND_DUPLICATE_OBJECTS);
+  if not ParseObjectDuplicateRequest(RequestText, RequireApply, StateToken,
+    Duplicates, ErrorCode, ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External duplicate request rejected', '',
+      'WARN', ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+  if not ReadCurrentEditState(EditHandle, EditState, ErrorMessage) then
+    Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+  if not ReadCurrentSceneObjects(EditHandle, Snapshot, ErrorMessage) then
+    Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+  BeforeIdentity := CreateSnapshotIdentity(EditState, Snapshot);
+  if not SameText(StateToken, BeforeIdentity.StateToken) then
+  begin
+    QueueMIRAIViewUpdate('External duplicate rejected - state changed', '',
+      'WARN', Command + ': state_changed');
+    Exit(BuildStateChangedError(Command, StateToken, BeforeIdentity));
+  end;
+  if not CreateObjectDuplicatePreviews(Snapshot, Duplicates, Previews,
+    ErrorCode, ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External duplicate request rejected', '',
+      'WARN', ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+  if not RequireApply then
+  begin
+    QueueMIRAIViewUpdate(
+      Format('Duplicate preview - %d objects', [Length(Previews)]),
+      '', 'OK', Format('%s -> %d objects',
+        [Command, Length(Previews)]));
+    Exit(BuildObjectDuplicatePreviewResponse(Previews, BeforeIdentity));
+  end;
+
+  if not ApplyObjectDuplicates(EditHandle, Previews, ErrorCode,
+    ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External duplicate failed', '', 'ERROR',
+      ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+  if not ReadCurrentEditState(EditHandle, AfterEditState,
+    ErrorMessage) then
+  begin
+    ErrorMessage := 'The duplication was applied, but the updated state ' +
+      'could not be read: ' + ErrorMessage;
+    Exit(BuildProtocolError(Command, 'post_write_read_failed',
+      ErrorMessage));
+  end;
+  if not ReadCurrentSceneObjects(EditHandle, AfterSnapshot,
+    ErrorMessage) then
+  begin
+    ErrorMessage := 'The duplication was applied, but the updated objects ' +
+      'could not be read: ' + ErrorMessage;
+    Exit(BuildProtocolError(Command, 'post_write_read_failed',
+      ErrorMessage));
+  end;
+  if not ResolveCreatedObjectIndices(AfterSnapshot, Previews,
+    CreatedIndices, ErrorMessage) then
+  begin
+    ErrorMessage := 'The duplication was applied, but verification failed: ' +
+      ErrorMessage;
+    Exit(BuildProtocolError(Command, 'post_write_verification_failed',
+      ErrorMessage));
+  end;
+  AfterIdentity := CreateSnapshotIdentity(AfterEditState, AfterSnapshot);
+  QueueMIRAIViewUpdate(
+    Format('Duplicate applied - %d objects', [Length(Previews)]),
+    '', 'OK', Format('%s -> %d objects created',
+      [Command, Length(Previews)]));
+  Result := BuildObjectDuplicateResponse(Previews, CreatedIndices,
+    BeforeIdentity, AfterIdentity);
+end;
+
+function HandleObjectMoveRequest(const RequestText, Command: string): string;
+var
+  AfterEditState : TAul2MIRAIEditState;
+  AfterIdentity  : TAul2MIRAISnapshotIdentity;
+  AfterSnapshot  : TAul2MIRAISceneSnapshot;
+  BeforeIdentity : TAul2MIRAISnapshotIdentity;
+  EditState      : TAul2MIRAIEditState;
+  ErrorCode      : string;
+  ErrorMessage   : string;
+  I              : Integer;
+  MovedCount     : Integer;
+  Moves          : TArray<TAul2MIRAIObjectMoveRequest>;
+  Previews       : TArray<TAul2MIRAIObjectMovePreview>;
+  RequireApply   : Boolean;
+  Snapshot       : TAul2MIRAISceneSnapshot;
+  StateToken     : string;
+begin
+  RequireApply := SameText(Command, AUL2MIRAI_COMMAND_MOVE_OBJECTS);
+  if not ParseObjectMoveRequest(RequestText, RequireApply, StateToken,
+    Moves, ErrorCode, ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External move request rejected', '', 'WARN',
+      ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+  if not ReadCurrentEditState(EditHandle, EditState, ErrorMessage) then
+    Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+  if not ReadCurrentSceneObjects(EditHandle, Snapshot, ErrorMessage) then
+    Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+  BeforeIdentity := CreateSnapshotIdentity(EditState, Snapshot);
+  if not SameText(StateToken, BeforeIdentity.StateToken) then
+  begin
+    QueueMIRAIViewUpdate('External move rejected - state changed', '',
+      'WARN', Command + ': state_changed');
+    Exit(BuildStateChangedError(Command, StateToken, BeforeIdentity));
+  end;
+  if not CreateObjectMovePreviews(Snapshot, Moves, Previews, ErrorCode,
+    ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External move request rejected', '', 'WARN',
+      ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+
+  MovedCount := 0;
+  for I := 0 to High(Previews) do
+    if Previews[I].WillMove then
+      Inc(MovedCount);
+  if not RequireApply then
+  begin
+    QueueMIRAIViewUpdate(
+      Format('Move preview - %d objects, %d moves',
+        [Length(Previews), MovedCount]), '', 'OK',
+      Format('%s -> %d objects', [Command, Length(Previews)]));
+    Exit(BuildObjectMovePreviewResponse(Previews, BeforeIdentity));
+  end;
+
+  if MovedCount = 0 then
+  begin
+    QueueMIRAIViewUpdate('Move skipped - all positions unchanged', '',
+      'OK', Format('%s -> no move', [Command]));
+    Exit(BuildObjectMoveResponse(Previews, BeforeIdentity,
+      BeforeIdentity));
+  end;
+  if not ApplyObjectMoves(EditHandle, Previews, ErrorCode,
+    ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External move failed', '', 'ERROR',
+      ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+  if not ReadCurrentEditState(EditHandle, AfterEditState,
+    ErrorMessage) then
+  begin
+    ErrorMessage := 'The move was applied, but the updated state could ' +
+      'not be read: ' + ErrorMessage;
+    Exit(BuildProtocolError(Command, 'post_write_read_failed',
+      ErrorMessage));
+  end;
+  if not ReadCurrentSceneObjects(EditHandle, AfterSnapshot,
+    ErrorMessage) then
+  begin
+    ErrorMessage := 'The move was applied, but the updated objects could ' +
+      'not be read: ' + ErrorMessage;
+    Exit(BuildProtocolError(Command, 'post_write_read_failed',
+      ErrorMessage));
+  end;
+  AfterIdentity := CreateSnapshotIdentity(AfterEditState, AfterSnapshot);
+  QueueMIRAIViewUpdate(
+    Format('Move applied - %d objects', [MovedCount]), '', 'OK',
+    Format('%s -> %d objects moved', [Command, MovedCount]));
+  Result := BuildObjectMoveResponse(Previews, BeforeIdentity,
+    AfterIdentity);
+end;
+
+function HandleParameterBatchRequest(const RequestText,
+  Command: string): string;
+var
+  AfterEditState : TAul2MIRAIEditState;
+  AfterIdentity  : TAul2MIRAISnapshotIdentity;
+  AfterSnapshot  : TAul2MIRAISceneSnapshot;
+  BeforeIdentity : TAul2MIRAISnapshotIdentity;
+  Changes        : TArray<TAul2MIRAIParameterChangeRequest>;
+  ChangedCount   : Integer;
+  EditState      : TAul2MIRAIEditState;
+  ErrorCode      : string;
+  ErrorMessage   : string;
+  I              : Integer;
+  Previews       : TArray<TAul2MIRAIParameterPreview>;
+  RequireApply   : Boolean;
+  Snapshot       : TAul2MIRAISceneSnapshot;
+  StateToken     : string;
+  VerifiedValues : TArray<string>;
+begin
+  RequireApply := SameText(Command, AUL2MIRAI_COMMAND_SET_PARAMETERS);
+  if not ParseParameterBatchRequest(RequestText, RequireApply, StateToken,
+    Changes, ErrorCode, ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External batch request rejected', '', 'WARN',
+      ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+  if not ReadCurrentEditState(EditHandle, EditState, ErrorMessage) then
+    Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+  if not ReadCurrentSceneObjects(EditHandle, Snapshot, ErrorMessage,
+    True) then
+    Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+  BeforeIdentity := CreateSnapshotIdentity(EditState, Snapshot);
+  if not SameText(StateToken, BeforeIdentity.StateToken) then
+  begin
+    QueueMIRAIViewUpdate('External batch rejected - state changed', '',
+      'WARN', Command + ': state_changed');
+    Exit(BuildStateChangedError(Command, StateToken, BeforeIdentity));
+  end;
+  if not CreateParameterPreviews(Snapshot, Changes, Previews, ErrorCode,
+    ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External batch request rejected', '', 'WARN',
+      ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+
+  ChangedCount := 0;
+  for I := 0 to High(Previews) do
+    if Previews[I].WillChange then
+      Inc(ChangedCount);
+  if not RequireApply then
+  begin
+    QueueMIRAIViewUpdate(
+      Format('Batch preview - %d items, %d changes',
+        [Length(Previews), ChangedCount]), '', 'OK',
+      Format('%s -> %d items', [Command, Length(Previews)]));
+    Exit(BuildParameterBatchPreviewResponse(Previews, BeforeIdentity));
+  end;
+
+  if ChangedCount = 0 then
+  begin
+    SetLength(VerifiedValues, Length(Previews));
+    for I := 0 to High(Previews) do
+      VerifiedValues[I] := Previews[I].BeforeValue;
+    QueueMIRAIViewUpdate('Batch edit skipped - all values unchanged', '',
+      'OK', Format('%s -> no change', [Command]));
+    Exit(BuildParameterBatchSetResponse(Previews, VerifiedValues,
+      BeforeIdentity, BeforeIdentity));
+  end;
+
+  if not ApplyParameterChanges(EditHandle, Previews, VerifiedValues,
+    ErrorCode, ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External batch edit failed', '', 'ERROR',
+      ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+  if not ReadCurrentEditState(EditHandle, AfterEditState,
+    ErrorMessage) then
+  begin
+    ErrorMessage := 'The batch edit was applied, but the updated state ' +
+      'could not be read: ' + ErrorMessage;
+    Exit(BuildProtocolError(Command, 'post_write_read_failed',
+      ErrorMessage));
+  end;
+  if not ReadCurrentSceneObjects(EditHandle, AfterSnapshot,
+    ErrorMessage) then
+  begin
+    ErrorMessage := 'The batch edit was applied, but the updated objects ' +
+      'could not be read: ' + ErrorMessage;
+    Exit(BuildProtocolError(Command, 'post_write_read_failed',
+      ErrorMessage));
+  end;
+  AfterIdentity := CreateSnapshotIdentity(AfterEditState, AfterSnapshot);
+  QueueMIRAIViewUpdate(
+    Format('Batch edit applied - %d changes', [ChangedCount]), '', 'OK',
+    Format('%s -> %d items, %d changes',
+      [Command, Length(Previews), ChangedCount]));
+  Result := BuildParameterBatchSetResponse(Previews, VerifiedValues,
+    BeforeIdentity, AfterIdentity);
+end;
 
 function HandleAul2MIRAIRequest(const RequestText: string): string;
 var
+  AfterEditState: TAul2MIRAIEditState;
+  AfterIdentity : TAul2MIRAISnapshotIdentity;
+  AfterSnapshot : TAul2MIRAISceneSnapshot;
   Command      : string;                  // 検証済みコマンド名
   ErrorCode    : string;                  // エラー識別子
   ErrorMessage : string;                  // エラー説明
   EditState    : TAul2MIRAIEditState;     // 現在の基本編集状態
+  EffectIndex  : Integer;                 // プレビュー対象エフェクト番号
+  Identity     : TAul2MIRAISnapshotIdentity; // 応答と状態の識別情報
+  ItemName     : string;                  // プレビュー対象設定項目名
+  NewValue     : string;                  // プレビューする変更後文字列
+  Preview      : TAul2MIRAIParameterPreview; // 検証済み変更予定
+  RequestedStateToken: string;            // 呼び出し側が取得した状態指紋
   Snapshot     : TAul2MIRAISceneSnapshot; // 取得した現在シーン情報
+  TargetIndex  : Integer;                 // シーン一覧内の対象番号
+  VerifiedValue: string;
 begin
   try
     if not ParseProtocolRequest(RequestText, Command, ErrorCode, ErrorMessage) then
@@ -44,6 +456,13 @@ begin
           Command + ': ' + ErrorMessage);
         Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
       end;
+      if not ReadCurrentSceneObjects(EditHandle, Snapshot, ErrorMessage) then
+      begin
+        QueueMIRAIViewUpdate('External state scan failed', '', 'ERROR',
+          Command + ': ' + ErrorMessage);
+        Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+      end;
+      Identity := CreateSnapshotIdentity(EditState, Snapshot);
       QueueMIRAIViewUpdate(
         Format('External state read - scene %d, frame %d',
           [EditState.SceneId, EditState.CursorFrame]),
@@ -51,7 +470,157 @@ begin
         Format('%s -> scene %d, frame %d (%d ms)',
           [Command, EditState.SceneId, EditState.CursorFrame,
            EditState.ElapsedMs]));
-      Exit(BuildEditStateResponse(EditState));
+      Exit(BuildEditStateResponse(EditState, Identity));
+    end;
+
+    if SameText(Command, AUL2MIRAI_COMMAND_PREVIEW_PARAMETERS) or
+       SameText(Command, AUL2MIRAI_COMMAND_SET_PARAMETERS) then
+      Exit(HandleParameterBatchRequest(RequestText, Command));
+
+    if SameText(Command, AUL2MIRAI_COMMAND_PREVIEW_MOVE_OBJECTS) or
+       SameText(Command, AUL2MIRAI_COMMAND_MOVE_OBJECTS) then
+      Exit(HandleObjectMoveRequest(RequestText, Command));
+
+    if SameText(Command, AUL2MIRAI_COMMAND_PREVIEW_DUPLICATE_OBJECTS) or
+       SameText(Command, AUL2MIRAI_COMMAND_DUPLICATE_OBJECTS) then
+      Exit(HandleObjectDuplicateRequest(RequestText, Command));
+
+    if SameText(Command, AUL2MIRAI_COMMAND_PREVIEW_EDIT_POSITION) or
+       SameText(Command, AUL2MIRAI_COMMAND_SET_EDIT_POSITION) then
+      Exit(HandleEditPositionRequest(RequestText, Command));
+
+    if SameText(Command, AUL2MIRAI_COMMAND_PREVIEW_PARAMETER) then
+    begin
+      if not ParseParameterPreviewRequest(RequestText, RequestedStateToken,
+        TargetIndex, EffectIndex, ItemName, NewValue, ErrorCode,
+        ErrorMessage) then
+      begin
+        QueueMIRAIViewUpdate('External preview rejected', '', 'WARN',
+          ErrorCode + ': ' + ErrorMessage);
+        Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+      end;
+      if not ReadCurrentEditState(EditHandle, EditState, ErrorMessage) then
+      begin
+        QueueMIRAIViewUpdate('External preview state read failed', '',
+          'ERROR', Command + ': ' + ErrorMessage);
+        Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+      end;
+      if not ReadCurrentSceneObjects(EditHandle, Snapshot, ErrorMessage,
+        True) then
+      begin
+        QueueMIRAIViewUpdate('External preview object read failed', '',
+          'ERROR', Command + ': ' + ErrorMessage);
+        Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+      end;
+      Identity := CreateSnapshotIdentity(EditState, Snapshot);
+      if not SameText(RequestedStateToken, Identity.StateToken) then
+      begin
+        QueueMIRAIViewUpdate('External preview rejected - state changed', '',
+          'WARN', Command + ': state_changed');
+        Exit(BuildStateChangedError(Command, RequestedStateToken, Identity));
+      end;
+      if not CreateParameterPreview(Snapshot, TargetIndex, EffectIndex,
+        ItemName, NewValue, Preview, ErrorCode, ErrorMessage) then
+      begin
+        QueueMIRAIViewUpdate('External preview rejected', '', 'WARN',
+          ErrorCode + ': ' + ErrorMessage);
+        Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+      end;
+      QueueMIRAIViewUpdate(
+        Format('Preview - object %d, %s', [TargetIndex, ItemName]),
+        '', 'OK',
+        Format('%s -> object %d, effect %d, %s (%s -> %s)',
+          [Command, TargetIndex, EffectIndex, ItemName,
+           Preview.BeforeValue, Preview.AfterValue]));
+      Exit(BuildParameterPreviewResponse(Preview, Identity));
+    end;
+
+    if SameText(Command, AUL2MIRAI_COMMAND_SET_PARAMETER) then
+    begin
+      if not ParseParameterSetRequest(RequestText, RequestedStateToken,
+        TargetIndex, EffectIndex, ItemName, NewValue, ErrorCode,
+        ErrorMessage) then
+      begin
+        QueueMIRAIViewUpdate('External edit rejected', '', 'WARN',
+          ErrorCode + ': ' + ErrorMessage);
+        Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+      end;
+      if not ReadCurrentEditState(EditHandle, EditState, ErrorMessage) then
+      begin
+        QueueMIRAIViewUpdate('External edit state read failed', '',
+          'ERROR', Command + ': ' + ErrorMessage);
+        Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+      end;
+      if not ReadCurrentSceneObjects(EditHandle, Snapshot, ErrorMessage,
+        True) then
+      begin
+        QueueMIRAIViewUpdate('External edit object read failed', '',
+          'ERROR', Command + ': ' + ErrorMessage);
+        Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+      end;
+      Identity := CreateSnapshotIdentity(EditState, Snapshot);
+      if not SameText(RequestedStateToken, Identity.StateToken) then
+      begin
+        QueueMIRAIViewUpdate('External edit rejected - state changed', '',
+          'WARN', Command + ': state_changed');
+        Exit(BuildStateChangedError(Command, RequestedStateToken, Identity));
+      end;
+      if not CreateParameterPreview(Snapshot, TargetIndex, EffectIndex,
+        ItemName, NewValue, Preview, ErrorCode, ErrorMessage) then
+      begin
+        QueueMIRAIViewUpdate('External edit rejected', '', 'WARN',
+          ErrorCode + ': ' + ErrorMessage);
+        Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+      end;
+
+      if not Preview.WillChange then
+      begin
+        QueueMIRAIViewUpdate(
+          Format('Edit skipped - object %d, %s unchanged',
+            [TargetIndex, ItemName]), '', 'OK',
+          Format('%s -> no change', [Command]));
+        Exit(BuildParameterSetResponse(Preview, Identity, Identity, False,
+          Preview.BeforeValue));
+      end;
+
+      if not ApplyParameterChange(EditHandle, Preview, VerifiedValue,
+        ErrorCode, ErrorMessage) then
+      begin
+        QueueMIRAIViewUpdate('External edit failed', '', 'ERROR',
+          ErrorCode + ': ' + ErrorMessage);
+        Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+      end;
+
+      if not ReadCurrentEditState(EditHandle, AfterEditState,
+        ErrorMessage) then
+      begin
+        ErrorMessage := 'The edit was applied, but the updated state could ' +
+          'not be read: ' + ErrorMessage;
+        QueueMIRAIViewUpdate('External edit verification failed', '',
+          'ERROR', ErrorMessage);
+        Exit(BuildProtocolError(Command, 'post_write_read_failed',
+          ErrorMessage));
+      end;
+      if not ReadCurrentSceneObjects(EditHandle, AfterSnapshot,
+        ErrorMessage) then
+      begin
+        ErrorMessage := 'The edit was applied, but the updated objects ' +
+          'could not be read: ' + ErrorMessage;
+        QueueMIRAIViewUpdate('External edit verification failed', '',
+          'ERROR', ErrorMessage);
+        Exit(BuildProtocolError(Command, 'post_write_read_failed',
+          ErrorMessage));
+      end;
+      AfterIdentity := CreateSnapshotIdentity(AfterEditState,
+        AfterSnapshot);
+      QueueMIRAIViewUpdate(
+        Format('Edit applied - object %d, %s', [TargetIndex, ItemName]),
+        '', 'OK',
+        Format('%s -> object %d, effect %d, %s (%s -> %s)',
+          [Command, TargetIndex, EffectIndex, ItemName,
+           Preview.BeforeValue, VerifiedValue]));
+      Exit(BuildParameterSetResponse(Preview, Identity, AfterIdentity,
+        True, VerifiedValue));
     end;
 
     if not SameText(Command, AUL2MIRAI_COMMAND_OBJECTS) and
@@ -65,6 +634,13 @@ begin
       Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
     end;
 
+    if not ReadCurrentEditState(EditHandle, EditState, ErrorMessage) then
+    begin
+      QueueMIRAIViewUpdate('External state read failed', '', 'ERROR',
+        Command + ': ' + ErrorMessage);
+      Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+    end;
+
     if not ReadCurrentSceneObjects(EditHandle, Snapshot, ErrorMessage,
       SameText(Command, AUL2MIRAI_COMMAND_CURSOR_OBJECTS) or
       SameText(Command, AUL2MIRAI_COMMAND_SELECTED_OBJECTS)) then
@@ -73,6 +649,7 @@ begin
         Command + ': ' + ErrorMessage);
       Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
     end;
+    Identity := CreateSnapshotIdentity(EditState, Snapshot);
 
     if SameText(Command, AUL2MIRAI_COMMAND_CURSOR_OBJECTS) then
       KeepObjectsAtCursor(Snapshot)
@@ -86,7 +663,7 @@ begin
       'OK',
       Format('%s -> %d objects (%d ms)',
         [Command, Length(Snapshot.Objects), Snapshot.ElapsedMs]));
-    Result := BuildSceneObjectsResponse(Command, Snapshot);
+    Result := BuildSceneObjectsResponse(Command, Snapshot, Identity);
   except
     on E: Exception do
     begin
