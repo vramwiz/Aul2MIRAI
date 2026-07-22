@@ -179,6 +179,9 @@ type
     EnumModuleInfo: Pointer;
     GetHostAppWindow: function: HWND; cdecl;
     GetEditState: function: Integer; cdecl;
+    // AviUtl2 v2.10: read-only lock内で編集情報を参照する。
+    CallReadSection: function(Func: TProcEditSection): BOOL; cdecl;
+    CallReadSectionParam: function(Param: Pointer; Func: TProcEditSectionParam): BOOL; cdecl;
   end;
 
 type

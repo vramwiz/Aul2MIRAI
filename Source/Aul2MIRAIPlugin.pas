@@ -13,8 +13,10 @@ implementation
 uses
   Winapi.Windows,
   Winapi.Messages,
-  System.Types,
-  System.SysUtils;
+  System.SysUtils,
+  PipeServerTThread,
+  Aul2MIRAIPipeServer,
+  Aul2MIRAIView;
 
 const
   WINDOW_CLASS_NAME = 'Aul2MIRAIClient';
@@ -27,23 +29,26 @@ var
 
 function MIRAIWndProc(WindowHandle: HWND; MessageId: UINT; WParam: WPARAM;
   LParam: LPARAM): LRESULT; stdcall;
-var
-  Paint: TPaintStruct;
-  ClientRect: TRect;
 begin
   case MessageId of
-    WM_PAINT:
+    WM_PIPE_NOTIFY:
       begin
-        BeginPaint(WindowHandle, Paint);
-        try
-          GetClientRect(WindowHandle, ClientRect);
-          SetBkMode(Paint.hdc, TRANSPARENT);
-          SetTextColor(Paint.hdc, RGB(230, 230, 230));
-          DrawText(Paint.hdc, DISPLAY_NAME, -1, ClientRect,
-            DT_CENTER or DT_VCENTER or DT_SINGLELINE);
-        finally
-          EndPaint(WindowHandle, Paint);
-        end;
+        ProcessMIRAIPipeMessage(WParam);
+        Exit(0);
+      end;
+    WM_COMMAND:
+      begin
+        if HandleMIRAIViewCommand(WParam) then
+          Exit(0);
+      end;
+    WM_SIZE:
+      begin
+        ResizeMIRAIView(LOWORD(LParam), HIWORD(LParam));
+        Exit(0);
+      end;
+    WM_AUL2MIRAI_VIEW_UPDATE:
+      begin
+        ApplyMIRAIViewUpdates;
         Exit(0);
       end;
   end;
@@ -76,6 +81,8 @@ begin
 end;
 
 procedure RegisterMIRAIPlugin(Host: PHostAppTable);
+var
+  ErrorMessage: string;
 begin
   if (Host = nil) or (ClientWindow <> 0) then
     Exit;
@@ -105,10 +112,16 @@ begin
 
   Host^.RegisterWindowClient(DISPLAY_NAME, ClientWindow);
   Host^.RegisterEditMenu(DISPLAY_NAME, @MIRAIEditMenuClick);
+  CreateMIRAIView(ClientWindow);
+  if not StartMIRAIPipeServer(ClientWindow, ErrorMessage) then
+    raise Exception.Create('External interface could not start: ' + ErrorMessage);
 end;
 
 procedure UnregisterMIRAIPlugin;
 begin
+  StopMIRAIPipeServer;
+  DestroyMIRAIView;
+
   if ClientWindow <> 0 then
   begin
     DestroyWindow(ClientWindow);

@@ -1,105 +1,151 @@
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <PropertyGroup>
-    <ProjectGuid>{D95A953C-FE9E-4B79-A4ED-F3E320EB5E29}</ProjectGuid>
-    <ProjectVersion>20.4</ProjectVersion>
-    <FrameworkType>None</FrameworkType>
-    <Base>True</Base>
-    <Config Condition="'$(Config)'==''">Release</Config>
-    <Platform Condition="'$(Platform)'==''">Win64</Platform>
-    <ProjectName Condition="'$(ProjectName)'==''">Aul2MIRAI</ProjectName>
-    <TargetedPlatforms>2</TargetedPlatforms>
-    <AppType>Library</AppType>
-    <MainSource>Aul2MIRAI.dpr</MainSource>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
-    <Base>true</Base>
-  </PropertyGroup>
-  <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Base)'=='true') or '$(Base_Win64)'!=''">
-    <Base_Win64>true</Base_Win64>
-    <CfgParent>Base</CfgParent>
-    <Base>true</Base>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Config)'=='Debug' or '$(Cfg_1)'!=''">
-    <Cfg_1>true</Cfg_1>
-    <CfgParent>Base</CfgParent>
-    <Base>true</Base>
-  </PropertyGroup>
-  <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Cfg_1)'=='true') or '$(Cfg_1_Win64)'!=''">
-    <Cfg_1_Win64>true</Cfg_1_Win64>
-    <CfgParent>Cfg_1</CfgParent>
-    <Cfg_1>true</Cfg_1>
-    <Base>true</Base>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Config)'=='Release' or '$(Cfg_2)'!=''">
-    <Cfg_2>true</Cfg_2>
-    <CfgParent>Base</CfgParent>
-    <Base>true</Base>
-  </PropertyGroup>
-  <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Cfg_2)'=='true') or '$(Cfg_2_Win64)'!=''">
-    <Cfg_2_Win64>true</Cfg_2_Win64>
-    <CfgParent>Cfg_2</CfgParent>
-    <Cfg_2>true</Cfg_2>
-    <Base>true</Base>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Base)'!=''">
-    <GenDll>true</GenDll>
-    <DCC_DcuOutput>.\$(Platform)\$(Config)</DCC_DcuOutput>
-    <DCC_ExeOutput>.\$(Platform)\$(Config)</DCC_ExeOutput>
-    <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
-    <SanitizedProjectName>Aul2MIRAI</SanitizedProjectName>
-  </PropertyGroup>
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{D95A953C-FE9E-4B79-A4ED-F3E320EB5E29}</ProjectGuid>
+        <ProjectVersion>20.4</ProjectVersion>
+        <FrameworkType>None</FrameworkType>
+        <Base>True</Base>
+        <Config Condition="'$(Config)'==''">Release</Config>
+        <Platform Condition="'$(Platform)'==''">Win64</Platform>
+        <ProjectName Condition="'$(ProjectName)'==''">Aul2MIRAI</ProjectName>
+        <TargetedPlatforms>2</TargetedPlatforms>
+        <AppType>Library</AppType>
+        <MainSource>Aul2MIRAI.dpr</MainSource>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Base)'=='true') or '$(Base_Win64)'!=''">
+        <Base_Win64>true</Base_Win64>
+        <CfgParent>Base</CfgParent>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='Debug' or '$(Cfg_1)'!=''">
+        <Cfg_1>true</Cfg_1>
+        <CfgParent>Base</CfgParent>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Cfg_1)'=='true') or '$(Cfg_1_Win64)'!=''">
+        <Cfg_1_Win64>true</Cfg_1_Win64>
+        <CfgParent>Cfg_1</CfgParent>
+        <Cfg_1>true</Cfg_1>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='Release' or '$(Cfg_2)'!=''">
+        <Cfg_2>true</Cfg_2>
+        <CfgParent>Base</CfgParent>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Cfg_2)'=='true') or '$(Cfg_2_Win64)'!=''">
+        <Cfg_2_Win64>true</Cfg_2_Win64>
+        <CfgParent>Cfg_2</CfgParent>
+        <Cfg_2>true</Cfg_2>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Base)'!=''">
+        <GenDll>true</GenDll>
+        <DCC_DcuOutput>.\$(Platform)\$(Config)</DCC_DcuOutput>
+        <DCC_ExeOutput>.\$(Platform)\$(Config)</DCC_ExeOutput>
+        <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
+        <SanitizedProjectName>Aul2MIRAI</SanitizedProjectName>
+    </PropertyGroup>
   <PropertyGroup Condition="'$(Base_Win64)'!=''">
     <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
     <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
     <VerInfo_Keys>FileDescription=AI MIRAI;FileVersion=0.1.0.0;InternalName=Aul2MIRAI;OriginalFilename=Aul2MIRAI.aux2;ProductName=AI MIRAI;ProductVersion=0.1.0.0;Comments=AviUtl2 extension plugin</VerInfo_Keys>
     <VerInfo_Locale>1041</VerInfo_Locale>
-    <PostBuildEvent>copy /Y &quot;.\Win64\$(Config)\Aul2MIRAI.dll&quot; &quot;.\Win64\$(Config)\Aul2MIRAI.aux2&quot;</PostBuildEvent>
-    <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
-  </PropertyGroup>
+    </PropertyGroup>
   <PropertyGroup Condition="'$(Cfg_1)'!=''">
     <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
     <DCC_DebugDCUs>true</DCC_DebugDCUs>
     <DCC_Optimize>false</DCC_Optimize>
     <DCC_GenerateStackFrames>true</DCC_GenerateStackFrames>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Cfg_2)'!=''">
-    <DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
-    <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
-    <DCC_DebugInformation>0</DCC_DebugInformation>
+  <PropertyGroup Condition="'$(Cfg_1_Win64)'!=''">
+    <Manifest_File>(なし)</Manifest_File>
+    <AppDPIAwarenessMode>none</AppDPIAwarenessMode>
+    <DCC_ExeOutput>C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\</DCC_ExeOutput>
+    <PreBuildEvent><![CDATA[if not exist "C:\ProgramData\aviutl2\Plugin\Aul2MIRAI" mkdir "C:\ProgramData\aviutl2\Plugin\Aul2MIRAI"]]></PreBuildEvent>
+    <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
+    <PostBuildEvent><![CDATA[copy /Y "C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).dll" "C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).aux2"]]></PostBuildEvent>
+    <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
+    <Debugger_HostApplication>D:\aviutl2beta50\aviutl2.exe</Debugger_HostApplication>
   </PropertyGroup>
-  <ItemGroup>
-    <DelphiCompile Include="$(MainSource)">
-      <MainSource>MainSource</MainSource>
-    </DelphiCompile>
-    <DCCReference Include="Source\Lib\AviUtl2Plugin\AviUtl2PluginTypes.pas"/>
-    <DCCReference Include="Source\Aul2MIRAIPlugin.pas"/>
-    <BuildConfiguration Include="Base">
-      <Key>Base</Key>
-    </BuildConfiguration>
-    <BuildConfiguration Include="Debug">
-      <Key>Cfg_1</Key>
-      <CfgParent>Base</CfgParent>
-    </BuildConfiguration>
-    <BuildConfiguration Include="Release">
-      <Key>Cfg_2</Key>
-      <CfgParent>Base</CfgParent>
-    </BuildConfiguration>
-  </ItemGroup>
-  <ProjectExtensions>
-    <Borland.Personality>Delphi.Personality.12</Borland.Personality>
-    <Borland.ProjectType>Application</Borland.ProjectType>
-    <BorlandProject>
-      <Delphi.Personality>
-        <Source>
-          <Source Name="MainSource">Aul2MIRAI.dpr</Source>
-        </Source>
-      </Delphi.Personality>
-      <Platforms>
-        <Platform value="Win32">False</Platform>
-        <Platform value="Win64">True</Platform>
-      </Platforms>
-    </BorlandProject>
-    <ProjectFileVersion>12</ProjectFileVersion>
-  </ProjectExtensions>
-  <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')"/>
+    <PropertyGroup Condition="'$(Cfg_2)'!=''">
+        <DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
+        <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
+        <DCC_DebugInformation>0</DCC_DebugInformation>
+    </PropertyGroup>
+  <PropertyGroup Condition="'$(Cfg_2_Win64)'!=''">
+    <Manifest_File>(なし)</Manifest_File>
+    <AppDPIAwarenessMode>none</AppDPIAwarenessMode>
+    <DCC_ExeOutput>C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\</DCC_ExeOutput>
+    <PreBuildEvent><![CDATA[if not exist "C:\ProgramData\aviutl2\Plugin\Aul2MIRAI" mkdir "C:\ProgramData\aviutl2\Plugin\Aul2MIRAI"]]></PreBuildEvent>
+    <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
+    <PostBuildEvent><![CDATA[copy /Y "C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).dll" "C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).aux2"&&if exist "C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).dll" del /Q "C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).dll"&&if exist "C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).rsm" del /Q "C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).rsm"]]></PostBuildEvent>
+    <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
+    <Debugger_HostApplication>D:\aviutl2_v2.1.0\aviutl2.exe</Debugger_HostApplication>
+    </PropertyGroup>
+    <ItemGroup>
+        <DelphiCompile Include="$(MainSource)">
+            <MainSource>MainSource</MainSource>
+        </DelphiCompile>
+        <DCCReference Include="Source\Lib\AviUtl2Plugin\AviUtl2PluginTypes.pas"/>
+        <DCCReference Include="Source\Lib\AviUtl2Plugin\AviUtl2PluginCore.pas"/>
+        <DCCReference Include="Source\Lib\Pipe\PipeServerTThread.pas"/>
+        <DCCReference Include="Source\Aul2MIRAIObjectTypes.pas"/>
+        <DCCReference Include="Source\Aul2MIRAIObjectAlias.pas"/>
+        <DCCReference Include="Source\Aul2MIRAIObjectReader.pas"/>
+        <DCCReference Include="Source\Aul2MIRAIObjectFormat.pas"/>
+        <DCCReference Include="Source\Aul2MIRAIProtocol.pas"/>
+        <DCCReference Include="Source\Aul2MIRAICommand.pas"/>
+        <DCCReference Include="Source\Aul2MIRAIPipeServer.pas"/>
+        <DCCReference Include="Source\Aul2MIRAILog.pas"/>
+        <DCCReference Include="Source\Aul2MIRAIView.pas"/>
+        <DCCReference Include="Source\Aul2MIRAIPlugin.pas"/>
+        <BuildConfiguration Include="Base">
+            <Key>Base</Key>
+        </BuildConfiguration>
+        <BuildConfiguration Include="Debug">
+            <Key>Cfg_1</Key>
+            <CfgParent>Base</CfgParent>
+        </BuildConfiguration>
+        <BuildConfiguration Include="Release">
+            <Key>Cfg_2</Key>
+            <CfgParent>Base</CfgParent>
+        </BuildConfiguration>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Delphi.Personality.12</Borland.Personality>
+        <Borland.ProjectType>Application</Borland.ProjectType>
+        <BorlandProject>
+            <Delphi.Personality>
+                <Source>
+                    <Source Name="MainSource">Aul2MIRAI.dpr</Source>
+                </Source>
+            </Delphi.Personality>
+            <Platforms>
+                <Platform value="Win32">False</Platform>
+                <Platform value="Win64">True</Platform>
+            </Platforms>
+        </BorlandProject>
+        <ProjectFileVersion>12</ProjectFileVersion>
+    </ProjectExtensions>
+    <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')"/>
+    <Import Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj" Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')"/>
+  <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win64'">
+    <PreBuildEvent>if not exist &quot;C:\ProgramData\aviutl2\Plugin\Aul2MIRAI&quot; mkdir &quot;C:\ProgramData\aviutl2\Plugin\Aul2MIRAI&quot;</PreBuildEvent>
+    <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
+    <PreLinkEvent/>
+    <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
+    <PostBuildEvent>copy /Y &quot;C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).dll&quot; &quot;C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).aux2&quot;</PostBuildEvent>
+    <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win64'">
+    <PreBuildEvent>if not exist &quot;C:\ProgramData\aviutl2\Plugin\Aul2MIRAI&quot; mkdir &quot;C:\ProgramData\aviutl2\Plugin\Aul2MIRAI&quot;</PreBuildEvent>
+    <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
+    <PreLinkEvent/>
+    <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
+    <PostBuildEvent>copy /Y &quot;C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).dll&quot; &quot;C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).aux2&quot;&amp;&amp;if exist &quot;C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).dll&quot; del /Q &quot;C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).dll&quot;&amp;&amp;if exist &quot;C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).rsm&quot; del /Q &quot;C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).rsm&quot;</PostBuildEvent>
+    <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
+  </PropertyGroup>
 </Project>
