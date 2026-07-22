@@ -11,7 +11,8 @@ uses
 // 現在シーンの共通オブジェクト情報を読み取り専用スナップショットへコピーする。
 function ReadCurrentSceneObjects(EditHandle: PEditHandle;
   out Snapshot: TAul2MIRAISceneSnapshot; out ErrorMessage: string;
-  IncludeSelectedDetails: Boolean = False): Boolean;
+  IncludeSelectedDetails: Boolean = False; DetailObjectIndex: Integer = -1;
+  DetailRangeStart: Integer = -1; DetailRangeEnd: Integer = -1): Boolean;
 
 implementation
 
@@ -27,13 +28,20 @@ const
   MAX_OBJECT_COUNT = 100000;
   MAX_EFFECT_COUNT = 256;
   MAX_SECTION_COUNT = 4096;
+  MAX_TRACK_PARAMETER_COUNT = 4096;
 
 type
+  TTrackParameterBuffer = array[0..MAX_TRACK_PARAMETER_COUNT - 1] of Double;
+  PTrackParameterBuffer = ^TTrackParameterBuffer;
+
   TObjectReadContext = class
   public
     Snapshot     : TAul2MIRAISceneSnapshot;
     ErrorMessage : string;
     IncludeSelectedDetails: Boolean;
+    DetailObjectIndex: Integer;
+    DetailRangeStart: Integer;
+    DetailRangeEnd: Integer;
   end;
 
 procedure AppendObject(var Items: TArray<TAul2MIRAIObjectInfo>;
@@ -177,6 +185,67 @@ begin
   Result := True;
 end;
 
+function ReadTrackDetails(Edit: PEditSection; Obj: TObjectHandle;
+  var Info: TAul2MIRAIObjectInfo; out ErrorMessage: string): Boolean;
+var
+  DetailIndex    : Integer;
+  EffectOccurrence: Integer;
+  EffectSelector : string;
+  ParameterIndex : Integer;
+  PreviousIndex  : Integer;
+  TrackIndex     : Integer;
+  TrackInfo      : TTrackInfo;
+begin
+  Result := False;
+  if not Assigned(Edit^.GetObjectTrackInfo) then
+    Exit(True);
+  for DetailIndex := 0 to High(Info.EffectDetails) do
+  begin
+    EffectOccurrence := 0;
+    for PreviousIndex := 0 to DetailIndex - 1 do
+      if Info.EffectDetails[PreviousIndex].Name =
+         Info.EffectDetails[DetailIndex].Name then
+        Inc(EffectOccurrence);
+    EffectSelector := Info.EffectDetails[DetailIndex].Name;
+    if EffectOccurrence > 0 then
+      EffectSelector := EffectSelector + ':' + IntToStr(EffectOccurrence);
+    for ParameterIndex := 0 to
+      High(Info.EffectDetails[DetailIndex].Parameters) do
+    begin
+      FillChar(TrackInfo, SizeOf(TrackInfo), 0);
+      if not Edit^.GetObjectTrackInfo(Obj,
+        PWideChar(EffectSelector),
+        PWideChar(Info.EffectDetails[DetailIndex].Parameters[ParameterIndex].Name),
+        @TrackInfo, SizeOf(TrackInfo)) then
+        Continue;
+      if (TrackInfo.ParamNum < 0) or
+         (TrackInfo.ParamNum > MAX_TRACK_PARAMETER_COUNT) or
+         ((TrackInfo.ParamNum > 0) and (TrackInfo.Param = nil)) then
+      begin
+        ErrorMessage := 'AviUtl2 returned invalid track information.';
+        Exit;
+      end;
+      with Info.EffectDetails[DetailIndex].Parameters[ParameterIndex] do
+      begin
+        TrackInfoAvailable := True;
+        TrackMode := CopyWideText(TrackInfo.Mode);
+        TrackAccelerate := TrackInfo.Accelerate;
+        TrackDecelerate := TrackInfo.Decelerate;
+        TrackIgnoreMidpoint := TrackInfo.TwoPoint;
+        TrackTimeControl := TrackInfo.TimeControl;
+        TrackGroupCount := TrackInfo.GroupNum;
+        TrackGroupIndex := TrackInfo.GroupIndex;
+        TrackGroupName := CopyWideText(TrackInfo.GroupName);
+        SetLength(TrackParameters, TrackInfo.ParamNum);
+        for TrackIndex := 0 to TrackInfo.ParamNum - 1 do
+          TrackParameters[TrackIndex] :=
+            PTrackParameterBuffer(TrackInfo.Param)^[TrackIndex];
+      end;
+    end;
+  end;
+  Result := True;
+end;
+
 procedure ReadSceneCallback(Param: Pointer; Edit: PEditSection); cdecl;
 var
   AliasText      : string;                       // コピーしたオブジェクトエイリアス
@@ -254,12 +323,20 @@ begin
         if Context.IncludeSelectedDetails and
            (Info.Selected or
             ((Info.StartFrame <= Context.Snapshot.CursorFrame) and
-             (Info.EndFrame >= Context.Snapshot.CursorFrame))) then
+             (Info.EndFrame >= Context.Snapshot.CursorFrame)) or
+            (Info.Index = Context.DetailObjectIndex) or
+            ((Context.DetailRangeStart >= 0) and
+             (Context.DetailRangeEnd >= Context.DetailRangeStart) and
+             (Info.StartFrame <= Context.DetailRangeEnd) and
+             (Info.EndFrame >= Context.DetailRangeStart))) then
           Info.EffectDetails := ExtractEffectDetails(AliasText);
         if not ReadObjectSections(Edit, Obj, Info.Focused, Info,
           Context.ErrorMessage) then
           Exit;
         if not ReadEffectStates(Edit, Obj, Info,
+          Context.ErrorMessage) then
+          Exit;
+        if not ReadTrackDetails(Edit, Obj, Info,
           Context.ErrorMessage) then
           Exit;
         AppendObject(Objects, ObjectCount, Info);
@@ -294,7 +371,8 @@ end;
 
 function ReadCurrentSceneObjects(EditHandle: PEditHandle;
   out Snapshot: TAul2MIRAISceneSnapshot; out ErrorMessage: string;
-  IncludeSelectedDetails: Boolean): Boolean;
+  IncludeSelectedDetails: Boolean; DetailObjectIndex: Integer;
+  DetailRangeStart, DetailRangeEnd: Integer): Boolean;
 var
   Context : TObjectReadContext; // SDKコールバックへ渡す取得コンテキスト
   EditInfo : TEditInfo;         // get_edit_infoからコピーする基本編集情報
@@ -317,6 +395,9 @@ begin
   Context := TObjectReadContext.Create;
   try
     Context.IncludeSelectedDetails := IncludeSelectedDetails;
+    Context.DetailObjectIndex := DetailObjectIndex;
+    Context.DetailRangeStart := DetailRangeStart;
+    Context.DetailRangeEnd := DetailRangeEnd;
     Started := GetTickCount64;
     FillChar(EditInfo, SizeOf(EditInfo), 0);
     EditHandle^.GetEditInfo(@EditInfo, SizeOf(EditInfo));

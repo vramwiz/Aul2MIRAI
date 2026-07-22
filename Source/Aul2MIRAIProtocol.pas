@@ -18,7 +18,9 @@ const
   AUL2MIRAI_COMMAND_STATE    = 'get_edit_state';
   AUL2MIRAI_COMMAND_OBJECTS  = 'get_scene_objects';
   AUL2MIRAI_COMMAND_CURSOR_OBJECTS = 'get_objects_at_cursor';
+  AUL2MIRAI_COMMAND_RANGE_OBJECTS = 'get_objects_in_selection';
   AUL2MIRAI_COMMAND_SELECTED_OBJECTS = 'get_selected_objects';
+  AUL2MIRAI_COMMAND_OBJECT_DETAILS = 'get_object_details';
   AUL2MIRAI_COMMAND_PREVIEW_PARAMETER = 'preview_set_object_parameter';
   AUL2MIRAI_COMMAND_SET_PARAMETER = 'set_object_parameter';
   AUL2MIRAI_COMMAND_PREVIEW_PARAMETERS = 'preview_set_object_parameters';
@@ -33,6 +35,9 @@ const
 function BuildProtocolRequest(const Command: string): string;
 function ParseProtocolRequest(const RequestText: string;
   out Command, ErrorCode, ErrorMessage: string): Boolean;
+function ParseObjectDetailsRequest(const RequestText: string;
+  out StateToken: string; out TargetIndex: Integer;
+  out ErrorCode, ErrorMessage: string): Boolean;
 function ParseParameterPreviewRequest(const RequestText: string;
   out StateToken: string; out TargetIndex, EffectIndex: Integer;
   out ItemName, NewValue, ErrorCode, ErrorMessage: string): Boolean;
@@ -169,6 +174,52 @@ begin
     end;
 
     Command := TJSONString(CommandValue).Value;
+    Result := True;
+  finally
+    Json.Free;
+  end;
+end;
+
+function ParseObjectDetailsRequest(const RequestText: string;
+  out StateToken: string; out TargetIndex: Integer;
+  out ErrorCode, ErrorMessage: string): Boolean;
+var
+  Json: TJSONValue;
+  Root: TJSONObject;
+begin
+  Result := False;
+  StateToken := '';
+  TargetIndex := -1;
+  ErrorCode := '';
+  ErrorMessage := '';
+  Json := TJSONObject.ParseJSONValue(RequestText);
+  try
+    if not (Json is TJSONObject) then
+    begin
+      ErrorCode := 'invalid_json';
+      ErrorMessage := 'Request must be a JSON object.';
+      Exit;
+    end;
+    Root := TJSONObject(Json);
+    if not RequireJsonString(Root, 'state_token', StateToken,
+      ErrorCode, ErrorMessage) then
+      Exit;
+    if (Length(StateToken) <> 71) or
+       not StartsText('sha256:', StateToken) then
+    begin
+      ErrorCode := 'invalid_state_token';
+      ErrorMessage := 'state_token must be a SHA-256 token.';
+      Exit;
+    end;
+    if not RequireJsonInteger(Root, 'target_index', TargetIndex,
+      ErrorCode, ErrorMessage) then
+      Exit;
+    if TargetIndex < 0 then
+    begin
+      ErrorCode := 'invalid_target_index';
+      ErrorMessage := 'target_index must be zero or greater.';
+      Exit;
+    end;
     Result := True;
   finally
     Json.Free;
@@ -359,6 +410,10 @@ var
   SectionFrame: Integer;
   SectionsJson: TJSONArray;
   SnapshotJson: TJSONObject;          // シーンスナップショット
+  TrackGroupJson: TJSONObject;
+  TrackJson   : TJSONObject;
+  TrackValue  : Double;
+  TrackValuesJson: TJSONArray;
 begin
   Root := TJSONObject.Create;
   try
@@ -462,6 +517,33 @@ begin
             ParameterJson.AddPair('value', Parameter.Value);
             ParameterJson.AddPair('truncated',
               TJSONBool.Create(Parameter.Truncated));
+            if Parameter.TrackInfoAvailable then
+            begin
+              TrackJson := TJSONObject.Create;
+              ParameterJson.AddPair('track_info', TrackJson);
+              TrackJson.AddPair('mode', Parameter.TrackMode);
+              TrackValuesJson := TJSONArray.Create;
+              TrackJson.AddPair('parameter_values', TrackValuesJson);
+              for TrackValue in Parameter.TrackParameters do
+                TrackValuesJson.Add(TrackValue);
+              TrackJson.AddPair('accelerate',
+                TJSONBool.Create(Parameter.TrackAccelerate));
+              TrackJson.AddPair('decelerate',
+                TJSONBool.Create(Parameter.TrackDecelerate));
+              TrackJson.AddPair('ignore_midpoint',
+                TJSONBool.Create(Parameter.TrackIgnoreMidpoint));
+              TrackJson.AddPair('time_control',
+                TJSONBool.Create(Parameter.TrackTimeControl));
+              TrackGroupJson := TJSONObject.Create;
+              TrackJson.AddPair('group', TrackGroupJson);
+              TrackGroupJson.AddPair('name', Parameter.TrackGroupName);
+              TrackGroupJson.AddPair('count',
+                TJSONNumber.Create(Parameter.TrackGroupCount));
+              TrackGroupJson.AddPair('index',
+                TJSONNumber.Create(Parameter.TrackGroupIndex));
+            end
+            else
+              ParameterJson.AddPair('track_info', TJSONNull.Create);
             ParametersJson.AddElement(ParameterJson);
           end;
           DetailsJson.AddElement(DetailJson);

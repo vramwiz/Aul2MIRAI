@@ -427,6 +427,8 @@ var
   AfterIdentity : TAul2MIRAISnapshotIdentity;
   AfterSnapshot : TAul2MIRAISceneSnapshot;
   Command      : string;                  // 検証済みコマンド名
+  DetailRangeEnd: Integer;                // 詳細取得する選択範囲の終了
+  DetailRangeStart: Integer;              // 詳細取得する選択範囲の開始
   ErrorCode    : string;                  // エラー識別子
   ErrorMessage : string;                  // エラー説明
   EditState    : TAul2MIRAIEditState;     // 現在の基本編集状態
@@ -488,6 +490,43 @@ begin
     if SameText(Command, AUL2MIRAI_COMMAND_PREVIEW_EDIT_POSITION) or
        SameText(Command, AUL2MIRAI_COMMAND_SET_EDIT_POSITION) then
       Exit(HandleEditPositionRequest(RequestText, Command));
+
+    if SameText(Command, AUL2MIRAI_COMMAND_OBJECT_DETAILS) then
+    begin
+      if not ParseObjectDetailsRequest(RequestText, RequestedStateToken,
+        TargetIndex, ErrorCode, ErrorMessage) then
+      begin
+        QueueMIRAIViewUpdate('External object detail rejected', '', 'WARN',
+          ErrorCode + ': ' + ErrorMessage);
+        Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+      end;
+      if not ReadCurrentEditState(EditHandle, EditState, ErrorMessage) then
+        Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+      if not ReadCurrentSceneObjects(EditHandle, Snapshot, ErrorMessage,
+        True, TargetIndex) then
+        Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+      Identity := CreateSnapshotIdentity(EditState, Snapshot);
+      if not SameText(RequestedStateToken, Identity.StateToken) then
+      begin
+        QueueMIRAIViewUpdate('External object detail rejected - state changed',
+          '', 'WARN', Command + ': state_changed');
+        Exit(BuildStateChangedError(Command, RequestedStateToken, Identity));
+      end;
+      if not KeepObjectByIndex(Snapshot, TargetIndex) then
+      begin
+        ErrorCode := 'target_not_found';
+        ErrorMessage := Format('Object index %d was not found.', [TargetIndex]);
+        QueueMIRAIViewUpdate('External object detail rejected', '', 'WARN',
+          Command + ': ' + ErrorMessage);
+        Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+      end;
+      QueueMIRAIViewUpdate(
+        Format('External object detail - object %d', [TargetIndex]),
+        FormatSceneSnapshot(Snapshot), 'OK',
+        Format('%s -> object %d (%d ms)',
+          [Command, TargetIndex, Snapshot.ElapsedMs]));
+      Exit(BuildSceneObjectsResponse(Command, Snapshot, Identity));
+    end;
 
     if SameText(Command, AUL2MIRAI_COMMAND_PREVIEW_PARAMETER) then
     begin
@@ -625,6 +664,7 @@ begin
 
     if not SameText(Command, AUL2MIRAI_COMMAND_OBJECTS) and
        not SameText(Command, AUL2MIRAI_COMMAND_CURSOR_OBJECTS) and
+       not SameText(Command, AUL2MIRAI_COMMAND_RANGE_OBJECTS) and
        not SameText(Command, AUL2MIRAI_COMMAND_SELECTED_OBJECTS) then
     begin
       ErrorCode := 'unsupported_command';
@@ -641,9 +681,18 @@ begin
       Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
     end;
 
+    DetailRangeStart := -1;
+    DetailRangeEnd := -1;
+    if SameText(Command, AUL2MIRAI_COMMAND_RANGE_OBJECTS) then
+    begin
+      DetailRangeStart := EditState.SelectRangeStart;
+      DetailRangeEnd := EditState.SelectRangeEnd;
+    end;
     if not ReadCurrentSceneObjects(EditHandle, Snapshot, ErrorMessage,
       SameText(Command, AUL2MIRAI_COMMAND_CURSOR_OBJECTS) or
-      SameText(Command, AUL2MIRAI_COMMAND_SELECTED_OBJECTS)) then
+      SameText(Command, AUL2MIRAI_COMMAND_RANGE_OBJECTS) or
+      SameText(Command, AUL2MIRAI_COMMAND_SELECTED_OBJECTS), -1,
+      DetailRangeStart, DetailRangeEnd) then
     begin
       QueueMIRAIViewUpdate('External read failed', '', 'ERROR',
         Command + ': ' + ErrorMessage);
@@ -653,6 +702,20 @@ begin
 
     if SameText(Command, AUL2MIRAI_COMMAND_CURSOR_OBJECTS) then
       KeepObjectsAtCursor(Snapshot)
+    else if SameText(Command, AUL2MIRAI_COMMAND_RANGE_OBJECTS) then
+    begin
+      if (EditState.SelectRangeStart < 0) or
+         (EditState.SelectRangeEnd < EditState.SelectRangeStart) then
+      begin
+        ErrorCode := 'selection_range_not_set';
+        ErrorMessage := 'No valid selection range is set.';
+        QueueMIRAIViewUpdate('External range read rejected', '', 'WARN',
+          Command + ': ' + ErrorMessage);
+        Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+      end;
+      KeepObjectsInFrameRange(Snapshot, EditState.SelectRangeStart,
+        EditState.SelectRangeEnd);
+    end
     else if SameText(Command, AUL2MIRAI_COMMAND_SELECTED_OBJECTS) then
       KeepSelectedObjects(Snapshot);
 

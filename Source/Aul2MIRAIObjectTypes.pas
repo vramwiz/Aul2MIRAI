@@ -23,6 +23,16 @@ type
     Name      : string;  // エイリアス内の設定項目名
     Value     : string;  // エイリアス内の文字列表現
     Truncated : Boolean; // 安全上の文字数上限で省略したか
+    TrackInfoAvailable: Boolean;
+    TrackMode : string;
+    TrackParameters: TArray<Double>;
+    TrackAccelerate: Boolean;
+    TrackDecelerate: Boolean;
+    TrackIgnoreMidpoint: Boolean;
+    TrackTimeControl: Boolean;
+    TrackGroupCount: Integer;
+    TrackGroupIndex: Integer;
+    TrackGroupName: string;
   end;
 
   TAul2MIRAIEffectDetail = record

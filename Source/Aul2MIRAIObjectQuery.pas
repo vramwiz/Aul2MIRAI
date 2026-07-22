@@ -7,7 +7,11 @@ uses
   Aul2MIRAIObjectTypes;
 
 procedure KeepObjectsAtCursor(var Snapshot: TAul2MIRAISceneSnapshot);
+procedure KeepObjectsInFrameRange(var Snapshot: TAul2MIRAISceneSnapshot;
+  StartFrame, EndFrame: Integer);
 procedure KeepSelectedObjects(var Snapshot: TAul2MIRAISceneSnapshot);
+function KeepObjectByIndex(var Snapshot: TAul2MIRAISceneSnapshot;
+  TargetIndex: Integer): Boolean;
 
 implementation
 
@@ -47,6 +51,17 @@ begin
     end);
 end;
 
+procedure KeepObjectsInFrameRange(var Snapshot: TAul2MIRAISceneSnapshot;
+  StartFrame, EndFrame: Integer);
+begin
+  FilterObjects(Snapshot,
+    function(const Item: TAul2MIRAIObjectInfo): Boolean
+    begin
+      Result := (Item.StartFrame <= EndFrame) and
+        (Item.EndFrame >= StartFrame);
+    end);
+end;
+
 procedure KeepSelectedObjects(var Snapshot: TAul2MIRAISceneSnapshot);
 begin
   FilterObjects(Snapshot,
@@ -54,6 +69,17 @@ begin
     begin
       Result := Item.Selected;
     end);
+end;
+
+function KeepObjectByIndex(var Snapshot: TAul2MIRAISceneSnapshot;
+  TargetIndex: Integer): Boolean;
+begin
+  FilterObjects(Snapshot,
+    function(const Item: TAul2MIRAIObjectInfo): Boolean
+    begin
+      Result := Item.Index = TargetIndex;
+    end);
+  Result := Length(Snapshot.Objects) = 1;
 end;
 
 end.

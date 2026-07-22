@@ -42,6 +42,20 @@ type
     EndFrame  : Integer;
   end;
 
+  PTrackInfo = ^TTrackInfo;
+  TTrackInfo = record
+    Mode       : LPCWSTR;
+    Param      : PDouble;
+    ParamNum   : Integer;
+    Accelerate : Boolean;
+    Decelerate : Boolean;
+    TwoPoint   : Boolean;
+    TimeControl: Boolean;
+    GroupNum   : Integer;
+    GroupIndex : Integer;
+    GroupName  : LPCWSTR;
+  end;
+
   {------------------------------------------------------------------
     EDIT_INFO（C++版と完全一致）
   ------------------------------------------------------------------}
@@ -170,7 +184,8 @@ type
       Section: Integer): Integer; cdecl;
     GetObjectTrackValue: Pointer;
     GetObjectCheckValue: Pointer;
-    GetObjectTrackInfo: Pointer;
+    GetObjectTrackInfo: function(Obj: TObjectHandle; Effect, Item: LPCWSTR;
+      Info: PTrackInfo; InfoSize: Integer): Boolean; cdecl;
     GetPaletteName: Pointer;
     GetPaletteInfo: Pointer;
     GetFont: Pointer;

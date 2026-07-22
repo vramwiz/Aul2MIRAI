@@ -21,7 +21,9 @@
 | `get_edit_state` | 現在のプロジェクト、シーン、カーソル、選択範囲、表示範囲 |
 | `get_scene_objects` | 現在シーンの全オブジェクト |
 | `get_objects_at_cursor` | カーソルフレームと重なるオブジェクトと設定値 |
+| `get_objects_in_selection` | 現在の選択範囲と重なるオブジェクトと設定値 |
 | `get_selected_objects` | 通常選択・複数選択中のオブジェクトと設定値 |
+| `get_object_details` | 最新状態のindexを指定した単一オブジェクトの詳細 |
 | `preview_set_object_parameter` | 選択オブジェクトの設定値変更を実行せず検証 |
 | `set_object_parameter` | 選択オブジェクトの単一設定値を安全条件付きで変更 |
 | `preview_set_object_parameters` | 最大64件の設定値変更を実行せず一括検証 |
@@ -182,7 +184,8 @@ finally {
               {
                 "name": "ファイル",
                 "value": "D:\\Video\\background.png",
-                "truncated": false
+                "truncated": false,
+                "track_info": null
               }
             ]
           }
@@ -207,7 +210,29 @@ finally {
 
 `snapshot_id`は応答そのものの識別子であり、永続的な状態IDではありません。`state_token`は編集状態の比較に使用します。同じ状態を再取得した場合は同じ値となり、カーソル、選択、配置、レイヤー状態、区間、エフェクト状態、設定値などが変わると別の値になります。編集状態が変わり得る操作の前には再取得し、古い`state_token`を現在状態として扱わないでください。
 
-`effect_details`は`get_objects_at_cursor`と`get_selected_objects`で返ります。設定値はエイリアスと同じ文字列表現です。`truncated`が`true`の場合、その値は安全上の上限で省略されています。
+`effect_details`は`get_objects_at_cursor`、`get_objects_in_selection`、`get_selected_objects`で返ります。設定値はエイリアスと同じ文字列表現です。`truncated`が`true`の場合、その値は安全上の上限で省略されています。
+
+各設定項目の`track_info`は、トラックバー項目ならオブジェクト、通常の文字列・チェック項目などでは`null`です。トラックバー情報には`mode`、`parameter_values`、`accelerate`、`decelerate`、`ignore_midpoint`、`time_control`、`group`が入ります。`mode`は移動なしの場合に空文字、`parameter_values`は内部パラメーターがない場合に空配列となります。
+
+`track_info.group`の`name`、`count`、`index`は、XYZなど同じエフェクト内で連動するトラックバー項目のグループです。複数オブジェクト間のグループ関係ではありません。公開SDKから複数オブジェクトのグループ・連結関係は取得できないため、配置や選択状態だけから関係を断定しないでください。
+
+`get_objects_in_selection`は現在の選択範囲と1フレーム以上重なるオブジェクトを全レイヤーから返し、`effect_details`も含みます。開始・終了フレームはともに範囲へ含まれます。選択範囲がない場合は`selection_range_not_set`が返るため、必要なら先に`get_edit_state`の`has_select_range`を確認してください。
+
+## 単一オブジェクトの詳細取得
+
+先に`get_scene_objects`などを実行し、同じ応答の`state_token`と対象の`index`を指定します。
+
+```json
+{
+  "protocol": "Aul2MIRAI",
+  "protocol_version": 1,
+  "command": "get_object_details",
+  "state_token": "sha256:bf4cb47cb3631a94048d10929f0e2dc2b733025f467596d878ec6f3fcfa716cc",
+  "target_index": 0
+}
+```
+
+成功時は通常のオブジェクト応答形式で、`snapshot.objects`に指定した1件だけが入り、`effect_details`を含みます。`index`は永続識別子ではないため、必ず同じ取得結果の`state_token`と組み合わせてください。`state_changed`が返った場合は自動的に同じindexで再試行せず、一覧を再取得して配置、種類、名称などから対象を選び直してください。
 
 ## 設定値変更のプレビュー
 
