@@ -277,7 +277,7 @@ Setup\make_release_zip.bat
 ```
 
 - Releaseビルド後に実行し、`Setup\Aul2MIRAI.zip`を生成する。
-- ZIP内は`Aul2MIRAI`フォルダをルートとし、現在は`Aul2MIRAI.aux2`だけを含める。
+- ZIP内は`Aul2MIRAI`フォルダをルートとし、`Aul2MIRAI.aux2`、`README.md`、`AI_USAGE.md`、`PIPE_INTERFACE.md`を含める。
 - 将来README、ライセンス、DLLなどが必要になった場合は、`Setup\make_release_zip.ps1`の`packageFiles`へ追加する。
 
 ## FFmpeg
