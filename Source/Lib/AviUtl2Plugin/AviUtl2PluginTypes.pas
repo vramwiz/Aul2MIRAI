@@ -208,6 +208,8 @@ type
   ------------------------------------------------------------------}
   TProcEditSection = procedure(Edit: PEditSection); cdecl;
   TProcEditSectionParam = procedure(Param: Pointer; Edit: PEditSection); cdecl;
+  TProcRenderingVideo = procedure(Param: Pointer; Frame: Integer;
+    Buffer: Pointer; Width, Height, Pitch: Integer); cdecl;
   // シーン変更通知コールバック
   TProcSceneChange = procedure(Edit: PEditSection); cdecl;
 
@@ -224,6 +226,13 @@ type
     // AviUtl2 v2.10: read-only lock内で編集情報を参照する。
     CallReadSection: function(Func: TProcEditSection): BOOL; cdecl;
     CallReadSectionParam: function(Param: Pointer; Func: TProcEditSectionParam): BOOL; cdecl;
+    EnumEffectItem: Pointer;
+    RenderingSceneVideo: function(Frame: Integer; Param: Pointer;
+      Func: TProcRenderingVideo): BOOL; cdecl;
+    RenderingSceneAudio: Pointer;
+    WaitRenderingTask: procedure; cdecl;
+    EnumFontName: Pointer;
+    EnumPaletteName: Pointer;
   end;
 
 type

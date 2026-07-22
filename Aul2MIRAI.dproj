@@ -94,6 +94,7 @@
         <DCCReference Include="Source\Lib\Pipe\PipeServerTThread.pas"/>
         <DCCReference Include="Source\Aul2MIRAIEditStateTypes.pas"/>
         <DCCReference Include="Source\Aul2MIRAIEditStateReader.pas"/>
+        <DCCReference Include="Source\Aul2MIRAIFrameCapture.pas"/>
         <DCCReference Include="Source\Aul2MIRAIEditPosition.pas"/>
         <DCCReference Include="Source\Aul2MIRAIEditPositionWriter.pas"/>
         <DCCReference Include="Source\Aul2MIRAISelection.pas"/>

@@ -6,7 +6,7 @@
 
 - プロトコル: `1`
 - 接続方式: PowerShell標準の`NamedPipeClientStream`
-- 対応機能: 状態取得、変更プレビュー、選択オブジェクトの単一設定値変更
+- 対応機能: 状態・オブジェクト・現在フレーム画像の取得、安全確認付き編集
 
 ## 前提条件
 
@@ -24,6 +24,7 @@
 | `get_objects_in_selection` | 現在の選択範囲と重なるオブジェクトと設定値 |
 | `get_selected_objects` | 通常選択・複数選択中のオブジェクトと設定値 |
 | `get_object_details` | 最新状態のindexを指定した単一オブジェクトの詳細 |
+| `get_current_frame_image` | 現在のカーソルフレームを一時BMPへレンダリング |
 | `preview_set_object_parameter` | 選択オブジェクトの設定値変更を実行せず検証 |
 | `set_object_parameter` | 選択オブジェクトの単一設定値を安全条件付きで変更 |
 | `preview_set_object_parameters` | 最大64件の設定値変更を実行せず一括検証 |
@@ -119,6 +120,38 @@ finally {
 ```
 
 プロジェクトが未保存、またはパスを取得できない状態では`project_path`と`project_name`は空文字になります。
+
+## 現在フレーム画像の取得
+
+`get_current_frame_image`は、現在のカーソルフレームをAviUtl2でレンダリングし、BMPファイルとして返します。要求に追加フィールドはありません。
+
+```json
+{
+  "protocol": "Aul2MIRAI",
+  "protocol_version": 1,
+  "command": "get_current_frame_image"
+}
+```
+
+成功応答の`image.file_path`は`%TEMP%\Aul2MIRAI`以下に自動生成された一意なファイルです。任意パスの指定や既存ファイルの上書きはできません。
+
+```json
+{
+  "status": "ok",
+  "command": "get_current_frame_image",
+  "image": {
+    "file_path": "C:\\Users\\user\\AppData\\Local\\Temp\\Aul2MIRAI\\frame_120_uuid.bmp",
+    "format": "bmp",
+    "frame": 120,
+    "width": 1920,
+    "height": 1080,
+    "file_size": 8294454,
+    "elapsed_ms": 42
+  }
+}
+```
+
+取得した画像を確認した後、不要になったファイルは呼び出し側で削除してください。画像取得はプロジェクト内容を変更せず、Undoも発生しません。`state_token`はレンダリング対象を取得した時点の編集状態を示します。
 
 ## オブジェクト応答形式
 

@@ -15,6 +15,7 @@ uses
   Aul2MIRAIEditPositionWriter,
   Aul2MIRAIEditStateReader,
   Aul2MIRAIEditStateTypes,
+  Aul2MIRAIFrameCapture,
   Aul2MIRAIObjectFormat,
   Aul2MIRAIObjectDuplicate,
   Aul2MIRAIObjectDuplicator,
@@ -434,6 +435,7 @@ var
   EditState    : TAul2MIRAIEditState;     // 現在の基本編集状態
   EffectIndex  : Integer;                 // プレビュー対象エフェクト番号
   Identity     : TAul2MIRAISnapshotIdentity; // 応答と状態の識別情報
+  FrameImage   : TAul2MIRAIFrameImage;       // 現在フレームの画像ファイル
   ItemName     : string;                  // プレビュー対象設定項目名
   NewValue     : string;                  // プレビューする変更後文字列
   Preview      : TAul2MIRAIParameterPreview; // 検証済み変更予定
@@ -473,6 +475,30 @@ begin
           [Command, EditState.SceneId, EditState.CursorFrame,
            EditState.ElapsedMs]));
       Exit(BuildEditStateResponse(EditState, Identity));
+    end;
+
+    if SameText(Command, AUL2MIRAI_COMMAND_CURRENT_FRAME_IMAGE) then
+    begin
+      if not ReadCurrentEditState(EditHandle, EditState, ErrorMessage) then
+        Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+      if not ReadCurrentSceneObjects(EditHandle, Snapshot,
+        ErrorMessage) then
+        Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+      Identity := CreateSnapshotIdentity(EditState, Snapshot);
+      if not CaptureSceneFrame(EditHandle, EditState.CursorFrame,
+        FrameImage, ErrorMessage) then
+      begin
+        QueueMIRAIViewUpdate('External frame capture failed', '', 'ERROR',
+          Command + ': ' + ErrorMessage);
+        Exit(BuildProtocolError(Command, 'render_failed', ErrorMessage));
+      end;
+      QueueMIRAIViewUpdate(
+        Format('External frame capture - frame %d', [FrameImage.Frame]),
+        '', 'OK',
+        Format('%s -> %dx%d, %d bytes (%d ms)',
+          [Command, FrameImage.Width, FrameImage.Height,
+           FrameImage.FileSize, FrameImage.ElapsedMs]));
+      Exit(BuildFrameImageResponse(FrameImage, Identity));
     end;
 
     if SameText(Command, AUL2MIRAI_COMMAND_PREVIEW_PARAMETERS) or

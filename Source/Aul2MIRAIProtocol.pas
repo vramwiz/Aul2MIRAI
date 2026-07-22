@@ -6,6 +6,7 @@ interface
 
 uses
   Aul2MIRAIEditStateTypes,
+  Aul2MIRAIFrameCapture,
   Aul2MIRAIObjectTypes,
   Aul2MIRAIParameterPreview,
   Aul2MIRAISnapshotIdentity;
@@ -31,6 +32,7 @@ const
   AUL2MIRAI_COMMAND_DUPLICATE_OBJECTS = 'duplicate_objects';
   AUL2MIRAI_COMMAND_PREVIEW_EDIT_POSITION = 'preview_set_edit_position';
   AUL2MIRAI_COMMAND_SET_EDIT_POSITION = 'set_edit_position';
+  AUL2MIRAI_COMMAND_CURRENT_FRAME_IMAGE = 'get_current_frame_image';
 
 function BuildProtocolRequest(const Command: string): string;
 function ParseProtocolRequest(const RequestText: string;
@@ -45,6 +47,8 @@ function ParseParameterSetRequest(const RequestText: string;
   out StateToken: string; out TargetIndex, EffectIndex: Integer;
   out ItemName, NewValue, ErrorCode, ErrorMessage: string): Boolean;
 function BuildEditStateResponse(const State: TAul2MIRAIEditState;
+  const Identity: TAul2MIRAISnapshotIdentity): string;
+function BuildFrameImageResponse(const Image: TAul2MIRAIFrameImage;
   const Identity: TAul2MIRAISnapshotIdentity): string;
 function BuildSceneObjectsResponse(const Command: string;
   const Snapshot: TAul2MIRAISceneSnapshot;
@@ -379,6 +383,35 @@ begin
       TJSONNumber.Create(State.GridBpmOffset));
     StateJson.AddPair('elapsed_ms',
       TJSONNumber.Create(Int64(State.ElapsedMs)));
+    Result := Root.ToJSON;
+  finally
+    Root.Free;
+  end;
+end;
+
+function BuildFrameImageResponse(const Image: TAul2MIRAIFrameImage;
+  const Identity: TAul2MIRAISnapshotIdentity): string;
+var
+  ImageJson: TJSONObject;
+  Root     : TJSONObject;
+begin
+  Root := TJSONObject.Create;
+  try
+    AddProtocolHeader(Root);
+    AddSnapshotIdentity(Root, Identity);
+    Root.AddPair('status', 'ok');
+    Root.AddPair('command', AUL2MIRAI_COMMAND_CURRENT_FRAME_IMAGE);
+    ImageJson := TJSONObject.Create;
+    Root.AddPair('image', ImageJson);
+    ImageJson.AddPair('file_path', Image.FilePath);
+    ImageJson.AddPair('format', Image.Format);
+    ImageJson.AddPair('captured_at_utc', Image.CapturedAtUtc);
+    ImageJson.AddPair('frame', TJSONNumber.Create(Image.Frame));
+    ImageJson.AddPair('width', TJSONNumber.Create(Image.Width));
+    ImageJson.AddPair('height', TJSONNumber.Create(Image.Height));
+    ImageJson.AddPair('file_size', TJSONNumber.Create(Image.FileSize));
+    ImageJson.AddPair('elapsed_ms',
+      TJSONNumber.Create(Int64(Image.ElapsedMs)));
     Result := Root.ToJSON;
   finally
     Root.Free;
