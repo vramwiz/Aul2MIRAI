@@ -65,3 +65,8 @@
 - `get_current_frame_image`を追加し、現在のカーソルフレームをAviUtl2のレンダリングAPIから32bit BMPへ保存できるようにした。
 - AviUtl2 v2.1.0の空プロジェクトでフレーム0を1920×1080、8,294,454 bytesのBMPとして63 msで取得し、画像ファイルを正常に表示できることを確認した。
 - `audio_test.aup2`のフレーム534を31 msで取得し、画像の上下方向とRGB色が正常であること、および画像取得後も`state_token`が変化しないことを確認した。
+- `Setup\make_release_zip.bat`と`make_release_zip.ps1`を追加し、Release配置済みプラグインから`Setup\Aul2MIRAI.zip`を生成できるようにした。
+- ZIP内の`Aul2MIRAI\Aul2MIRAI.aux2`とRelease配置物のSHA-256が一致することを確認した。将来の配布物はスクリプトの`packageFiles`へ追加する構成とした。
+- AI MIRAI画面を本番向けに整理し、デバッグ用のRefresh、オブジェクト全文、操作ログを廃止して、製品説明、外部インターフェース状態、接続先、最終処理を表示する構成へ変更した。
+- ヘルプボタンから既定ブラウザで`https://github.com/vramwiz/Aul2MIRAI`を開けることをAviUtl2 v2.1.0上で確認した。
+- AI MIRAI画面をさらに簡素化し、最新の外部操作ログ1行、`待機中`・`完了`・`拒否`・`エラー`の短い状態、ヘルプボタンだけを表示する構成とした。`get_edit_state`後に1行ログと`状態: 完了`へ更新されることを実機確認した。

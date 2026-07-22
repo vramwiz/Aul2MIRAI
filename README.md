@@ -2,15 +2,31 @@
 
 AviUtl2用の最小構成の拡張プラグインです。
 
-- AviUtl2上の表示名: `AI MIRAI`
-- 対象: Win64
-- Release出力: `C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\Aul2MIRAI.aux2`
+## インストール
 
-ビルド時にAviUtl2のPluginフォルダへ `.aux2` が自動配置されます。
+ダウンロードしたファイルを展開し、`Aul2MIRAI.aux2`を次のいずれかへコピーします。
+
+```text
+C:\ProgramData\aviutl2\Plugin\
+```
+
+または、`Plugin`フォルダの直下に`Aul2MIRAI`フォルダを作成してコピーします。
+
+```text
+C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\
+```
+
+## 対応AI環境
+
+推奨環境はCodexです。AviUtl2を操作する前に、Codexへ[`PIPE_INTERFACE.md`](PIPE_INTERFACE.md)と[`AI_USAGE.md`](AI_USAGE.md)を読み込ませてください。Codexは通信方式、コマンド、安全な操作手順をそのセッション内で理解し、PowerShellからAI MIRAIへ接続します。
+
+Codex以外でも、ローカルの仕様書を読み、Windows PowerShellとNamed Pipeを使ってJSONを送受信できるCodex相当のAIエージェント環境であれば動作する可能性があります。ただし、Codex以外の環境での動作は保証していません。
 
 ## Codexから取得・設定する
 
 AviUtl2でAI MIRAIを読み込んだ状態で、PowerShell標準のNamed Pipe機能からJSON要求を送ります。専用EXEは使用しません。接続方法とJSON仕様は[`AI_USAGE.md`](AI_USAGE.md)を参照してください。
+
+AI MIRAI画面の「ヘルプ」ボタンから、既定ブラウザで[`vramwiz/Aul2MIRAI`](https://github.com/vramwiz/Aul2MIRAI)を開けます。
 
 確認済みの取得機能:
 
@@ -36,5 +52,3 @@ AviUtl2でAI MIRAIを読み込んだ状態で、PowerShell標準のNamed Pipe機
 - 現在のカーソルフレームを一時BMPへレンダリングして取得
 
 AviUtl2 v2.10の実プロジェクトで、通常選択したオブジェクトの取得、レイヤー・区間・エフェクト状態の読み取り、設定値の変更と再取得まで確認済みです。開発・検証履歴は[`HISTORY.md`](HISTORY.md)を参照してください。
-
-プラグインは`Aul2MIRAI.dproj`からRelease / Win64でビルドします。

@@ -88,8 +88,8 @@ begin
 
   try
     Server := TMIRAIPipeServer.Create(NotifyWindow);
-    QueueMIRAIViewUpdate('Ready - external interface active', '', 'INFO',
-      'Named Pipe server started: ' + AUL2MIRAI_PIPE_NAME);
+    QueueMIRAIViewUpdate('待機中', '', 'INFO',
+      'AIからの操作を待っています。');
     Result := True;
   except
     on E: Exception do

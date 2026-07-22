@@ -24,7 +24,6 @@ const
 
 var
   ClientWindow: HWND;
-  WindowBrush: HBRUSH;
   WindowClassRegistered: Boolean;
 
 function MIRAIWndProc(WindowHandle: HWND; MessageId: UINT; WParam: WPARAM;
@@ -65,7 +64,7 @@ begin
   WindowClass.lpfnWndProc := @MIRAIWndProc;
   WindowClass.hInstance := HInstance;
   WindowClass.hCursor := LoadCursor(0, IDC_ARROW);
-  WindowClass.hbrBackground := WindowBrush;
+  WindowClass.hbrBackground := HBRUSH(COLOR_WINDOW + 1);
   WindowClass.lpszClassName := WINDOW_CLASS_NAME;
 
   if RegisterClassEx(WindowClass) <> 0 then
@@ -87,10 +86,6 @@ begin
   if (Host = nil) or (ClientWindow <> 0) then
     Exit;
 
-  WindowBrush := CreateSolidBrush(RGB(28, 30, 33));
-  if WindowBrush = 0 then
-    RaiseLastOSError;
-
   RegisterMIRAIWindowClass;
 
   ClientWindow := CreateWindowEx(
@@ -100,8 +95,8 @@ begin
     WS_POPUP,
     CW_USEDEFAULT,
     CW_USEDEFAULT,
-    520,
-    360,
+    420,
+    86,
     0,
     0,
     HInstance,
@@ -134,11 +129,6 @@ begin
     WindowClassRegistered := False;
   end;
 
-  if WindowBrush <> 0 then
-  begin
-    DeleteObject(WindowBrush);
-    WindowBrush := 0;
-  end;
 end;
 
 end.
