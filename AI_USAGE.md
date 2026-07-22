@@ -14,7 +14,16 @@
 - AviUtl2が`Aul2MIRAI.aux2`を読み込んでいること。
 - 専用クライアントEXEは使用しない。次のPowerShellコードで直接接続すること。
 
-## オブジェクト一覧の取得
+## 使用できるコマンド
+
+| コマンド | 取得内容 |
+| --- | --- |
+| `get_edit_state` | 現在のプロジェクト、シーン、カーソル、選択範囲、表示範囲 |
+| `get_scene_objects` | 現在シーンの全オブジェクト |
+| `get_objects_at_cursor` | カーソルフレームと重なるオブジェクトと設定値 |
+| `get_selected_objects` | 通常選択・複数選択中のオブジェクトと設定値 |
+
+## 接続と取得
 
 PowerShell:
 
@@ -29,7 +38,12 @@ try {
   $pipe.Connect(5000)
   $pipe.ReadMode = [System.IO.Pipes.PipeTransmissionMode]::Message
 
-  $request = '{"protocol":"Aul2MIRAI","protocol_version":1,"command":"get_scene_objects"}'
+  $command = 'get_edit_state'
+  $request = @{
+    protocol = 'Aul2MIRAI'
+    protocol_version = 1
+    command = $command
+  } | ConvertTo-Json -Compress
   $requestBytes = [System.Text.Encoding]::UTF8.GetBytes($request)
   $pipe.Write($requestBytes, 0, $requestBytes.Length)
   $pipe.Flush()
@@ -53,7 +67,45 @@ finally {
 
 最後の式がJSON文字列をPowerShellの標準出力へ出します。`status`が`ok`なら成功、`error`なら要求または読み取りの失敗です。接続そのものに失敗した場合はPowerShell例外として扱います。
 
-## 応答形式
+`$command`を上表の値へ変更して必要な情報を取得します。
+
+## 編集状態の応答形式
+
+`get_edit_state`は`edit_state`に現在の状態を返します。フレームとレイヤーは0-basedです。
+
+```json
+{
+  "protocol": "Aul2MIRAI",
+  "protocol_version": 1,
+  "status": "ok",
+  "command": "get_edit_state",
+  "edit_state": {
+    "captured_at_utc": "2026-07-22T04:12:36.658Z",
+    "project_path": "D:\\Video\\sample.aup2",
+    "project_name": "sample.aup2",
+    "scene_id": 0,
+    "scene_name": "Root",
+    "edit_mode": "edit",
+    "width": 1920,
+    "height": 1080,
+    "rate": 30,
+    "scale": 1,
+    "sample_rate": 44100,
+    "cursor_frame": 120,
+    "cursor_seconds": 4.0,
+    "cursor_layer": 2,
+    "select_range_start": -1,
+    "select_range_end": -1,
+    "has_select_range": false,
+    "selected_count": 0,
+    "elapsed_ms": 0
+  }
+}
+```
+
+プロジェクトが未保存、またはパスを取得できない状態では`project_path`と`project_name`は空文字になります。
+
+## オブジェクト応答形式
 
 ```json
 {
@@ -78,8 +130,24 @@ finally {
         "start_frame": 100,
         "end_frame": 149,
         "selected": true,
+        "focused": true,
         "name": "Sample",
-        "primary_effect": "Text"
+        "primary_effect": "画像ファイル",
+        "object_type": "image",
+        "material_path": "D:\\Video\\background.png",
+        "effects": ["画像ファイル", "標準描画"],
+        "effect_details": [
+          {
+            "name": "画像ファイル",
+            "parameters": [
+              {
+                "name": "ファイル",
+                "value": "D:\\Video\\background.png",
+                "truncated": false
+              }
+            ]
+          }
+        ]
       }
     ]
   }
@@ -87,6 +155,12 @@ finally {
 ```
 
 `layer`とフレーム番号はSDKと同じ0-basedです。`index`はその応答内だけで有効な連番であり、永続的なオブジェクト識別子ではありません。
+
+`selected`は通常選択のフォーカス対象と複数選択対象を統合した値です。`focused`は、その中でもオブジェクト設定ウィンドウで通常選択されている1件を示します。
+
+通常選択があるのに`get_selected_object_num`相当の複数選択数が0となる場合でも、AI MIRAIはフォーカス対象を統合して`get_selected_objects`へ含めます。
+
+`effect_details`は`get_objects_at_cursor`と`get_selected_objects`で返ります。設定値はエイリアスと同じ文字列表現です。`truncated`が`true`の場合、その値は安全上の上限で省略されています。
 
 ## エラー形式
 
@@ -110,5 +184,5 @@ finally {
 - 現在のバージョンは読み取り専用です。編集操作は要求しないでください。
 - 取得結果は要求時点のスナップショットです。AviUtl2で編集した後は再取得してください。
 - `index`や表示名だけを永続IDとして保存しないでください。
-- 素材パス、エイリアス全文、全フィルター設定はまだ取得対象ではありません。
+- 素材パス、エフェクト名、カーソル位置または選択中オブジェクトの設定値を取得できます。エイリアス全文は取得対象ではありません。
 - 応答が大きい場合でも、JSONの一部だけを切り出して別の有効な状態として扱わないでください。

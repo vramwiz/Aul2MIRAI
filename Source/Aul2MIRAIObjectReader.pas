@@ -10,38 +10,28 @@ uses
 
 // 現在シーンの共通オブジェクト情報を読み取り専用スナップショットへコピーする。
 function ReadCurrentSceneObjects(EditHandle: PEditHandle;
-  out Snapshot: TAul2MIRAISceneSnapshot; out ErrorMessage: string): Boolean;
+  out Snapshot: TAul2MIRAISceneSnapshot; out ErrorMessage: string;
+  IncludeSelectedDetails: Boolean = False): Boolean;
 
 implementation
 
 uses
   Winapi.Windows,
   System.SysUtils,
-  Aul2MIRAIObjectAlias;
+  Aul2MIRAIObjectAlias,
+  Aul2MIRAIObjectClassifier,
+  Aul2MIRAISelection;
 
 const
   MAX_OBJECT_COUNT = 100000;
 
 type
-  TObjectHandleArray = array of TObjectHandle;
-
   TObjectReadContext = class
   public
     Snapshot     : TAul2MIRAISceneSnapshot;
     ErrorMessage : string;
+    IncludeSelectedDetails: Boolean;
   end;
-
-function ContainsHandle(const Items: TObjectHandleArray;
-  Value: TObjectHandle): Boolean;
-var
-  Item: TObjectHandle;
-begin
-  for Item in Items do
-    if Item = Value then
-      Exit(True);
-
-  Result := False;
-end;
 
 procedure AppendObject(var Items: TArray<TAul2MIRAIObjectInfo>;
   var Count: Integer; const Value: TAul2MIRAIObjectInfo);
@@ -72,8 +62,8 @@ procedure ReadSceneCallback(Param: Pointer; Edit: PEditSection); cdecl;
 var
   AliasText      : string;                       // コピーしたオブジェクトエイリアス
   Context        : TObjectReadContext;           // 呼び出し元の取得コンテキスト
+  FocusHandle    : TObjectHandle;                // 通常選択されているオブジェクト
   Frame          : Integer;                      // 現在レイヤーの探索開始フレーム
-  Index          : Integer;                      // 選択オブジェクト列挙番号
   Info           : TAul2MIRAIObjectInfo;         // 現在追加するオブジェクト情報
   Layer          : Integer;                      // 探索中のレイヤー番号
   LayerFrame     : TObjectLayerFrame;            // SDKから取得した配置範囲
@@ -93,17 +83,12 @@ begin
       Context.ErrorMessage := 'AviUtl2 returned no read section.';
       Exit;
     end;
-    Context.Snapshot.SelectedCount := Edit^.GetSelectedObjectNum();
-    if (Context.Snapshot.SelectedCount < 0) or
-       (Context.Snapshot.SelectedCount > MAX_OBJECT_COUNT) then
+    if not ReadSelectedObjectHandles(Edit, Selected, FocusHandle,
+      Context.ErrorMessage) then
     begin
-      Context.ErrorMessage := 'AviUtl2 returned an invalid selected object count.';
       Exit;
     end;
-
-    SetLength(Selected, Context.Snapshot.SelectedCount);
-    for Index := 0 to Context.Snapshot.SelectedCount - 1 do
-      Selected[Index] := Edit^.GetSelectedObject(Index);
+    Context.Snapshot.SelectedCount := Length(Selected);
 
     if Context.Snapshot.LayerMax < 0 then
       Exit;
@@ -133,10 +118,19 @@ begin
         Info.Layer := LayerFrame.Layer;
         Info.StartFrame := LayerFrame.StartFrame;
         Info.EndFrame := LayerFrame.EndFrame;
-        Info.Selected := ContainsHandle(Selected, Obj);
+        Info.Selected := ContainsObjectHandle(Selected, Obj);
+        Info.Focused := Obj = FocusHandle;
         Info.Name := CopyWideText(Edit^.GetObjectName(Obj));
         AliasText := CopyUtf8Text(Edit^.GetObjectAlias(Obj));
         Info.PrimaryEffect := ExtractPrimaryEffect(AliasText);
+        Info.ObjectType := ClassifyObjectType(Info.PrimaryEffect);
+        Info.MaterialPath := ExtractMaterialPath(AliasText);
+        Info.Effects := ExtractEffectNames(AliasText);
+        if Context.IncludeSelectedDetails and
+           (Info.Selected or
+            ((Info.StartFrame <= Context.Snapshot.CursorFrame) and
+             (Info.EndFrame >= Context.Snapshot.CursorFrame))) then
+          Info.EffectDetails := ExtractEffectDetails(AliasText);
         AppendObject(Objects, ObjectCount, Info);
 
         if ObjectCount >= MAX_OBJECT_COUNT then
@@ -168,7 +162,8 @@ begin
 end;
 
 function ReadCurrentSceneObjects(EditHandle: PEditHandle;
-  out Snapshot: TAul2MIRAISceneSnapshot; out ErrorMessage: string): Boolean;
+  out Snapshot: TAul2MIRAISceneSnapshot; out ErrorMessage: string;
+  IncludeSelectedDetails: Boolean): Boolean;
 var
   Context : TObjectReadContext; // SDKコールバックへ渡す取得コンテキスト
   EditInfo : TEditInfo;         // get_edit_infoからコピーする基本編集情報
@@ -190,6 +185,7 @@ begin
 
   Context := TObjectReadContext.Create;
   try
+    Context.IncludeSelectedDetails := IncludeSelectedDetails;
     Started := GetTickCount64;
     FillChar(EditInfo, SizeOf(EditInfo), 0);
     EditHandle^.GetEditInfo(@EditInfo, SizeOf(EditInfo));
