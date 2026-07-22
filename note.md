@@ -300,7 +300,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\Aul2MIRAI.aux2
 - コメントと対象の宣言・実装の間には空行を入れない。
 - `interface` に公開する `procedure` / `function` には、呼び出し側から見た責務、入出力、重要な副作用を宣言直前の `//` コメントで書く。
 - `property`、`procedure`、`function` 宣言は、横幅112文字以内に収まる場合は折り返さない。
-- 日本語の文字列リテラルを持つ `.pas` はUTF-8 BOM付きで保存する。BOMなしUTF-8ではDelphiの文字コード判定が揺れ、GUI表示が文字化けする場合がある。
+- プロジェクトファイルと全ユニット（`.dpr`、`.dproj`、`.pas`）は、常にUTF-8 BOM付きで保存する。新規作成時や編集時もこの形式を維持し、ANSIやBOMなしUTF-8へ戻さない。Delphiの文字コード判定の揺れによるコメントやGUI表示の文字化けを防ぐため、作業完了前にBOMの有無を確認する。
 
 ## 保守ルール
 

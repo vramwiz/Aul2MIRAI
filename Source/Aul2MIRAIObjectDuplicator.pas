@@ -1,4 +1,4 @@
-unit Aul2MIRAIObjectDuplicator;
+﻿unit Aul2MIRAIObjectDuplicator;
 
 // Creates validated object copies in one AviUtl2 edit section and removes
 // copies already created when a later operation fails.

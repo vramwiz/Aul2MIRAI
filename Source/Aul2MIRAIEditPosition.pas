@@ -1,4 +1,4 @@
-unit Aul2MIRAIEditPosition;
+﻿unit Aul2MIRAIEditPosition;
 
 // Parses, validates, and formats cursor and selection range changes without
 // accessing AviUtl2 SDK handles.

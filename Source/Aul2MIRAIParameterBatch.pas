@@ -1,4 +1,4 @@
-unit Aul2MIRAIParameterBatch;
+﻿unit Aul2MIRAIParameterBatch;
 
 // Parses, validates, and formats atomic multi-parameter operations without
 // accessing AviUtl2 SDK handles.

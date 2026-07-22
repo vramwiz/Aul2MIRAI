@@ -1,4 +1,4 @@
-unit Aul2MIRAIObjectReader;
+﻿unit Aul2MIRAIObjectReader;
 
 // 1回のread section内で現在シーンの全レイヤーをオブジェクト単位に走査する。
 

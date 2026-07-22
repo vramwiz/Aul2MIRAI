@@ -1,4 +1,4 @@
-library Aul2MIRAI;
+﻿library Aul2MIRAI;
 
 // AviUtl2 extension plugin: AI MIRAI
 

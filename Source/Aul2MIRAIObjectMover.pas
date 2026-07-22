@@ -1,4 +1,4 @@
-unit Aul2MIRAIObjectMover;
+﻿unit Aul2MIRAIObjectMover;
 
 // Moves validated objects in one AviUtl2 edit section and restores earlier
 // moves when a later move fails.

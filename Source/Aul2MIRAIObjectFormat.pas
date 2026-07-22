@@ -1,4 +1,4 @@
-unit Aul2MIRAIObjectFormat;
+﻿unit Aul2MIRAIObjectFormat;
 
 // 取得済みスナップショットを確認画面用の読みやすいテキストへ整形する。
 

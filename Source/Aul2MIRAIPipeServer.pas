@@ -1,4 +1,4 @@
-unit Aul2MIRAIPipeServer;
+﻿unit Aul2MIRAIPipeServer;
 
 // コピーしたPipeライブラリをAI MIRAIのJSON要求処理へ接続する。
 interface

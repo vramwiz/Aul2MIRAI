@@ -1,4 +1,4 @@
-unit Aul2MIRAIView;
+﻿unit Aul2MIRAIView;
 
 // オブジェクト取得確認用の状態表示、一覧、操作ログをWin32子コントロールで構成する。
 

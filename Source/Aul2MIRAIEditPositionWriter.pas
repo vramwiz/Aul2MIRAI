@@ -1,4 +1,4 @@
-unit Aul2MIRAIEditPositionWriter;
+﻿unit Aul2MIRAIEditPositionWriter;
 
 // Applies a validated cursor and selection range change through one AviUtl2
 // edit callback. These UI-state changes are not Undo operations.

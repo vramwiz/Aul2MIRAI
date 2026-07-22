@@ -1,4 +1,4 @@
-unit Aul2MIRAIParameterPreview;
+﻿unit Aul2MIRAIParameterPreview;
 
 // 選択オブジェクトの設定値変更予定を検証し、変更せずに結果を作る。
 interface

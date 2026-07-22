@@ -1,4 +1,4 @@
-unit Aul2MIRAIObjectQuery;
+﻿unit Aul2MIRAIObjectQuery;
 
 // 取得済みシーンスナップショットから要求対象だけを抽出する。
 interface

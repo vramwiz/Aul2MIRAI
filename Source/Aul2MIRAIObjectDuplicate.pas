@@ -1,4 +1,4 @@
-unit Aul2MIRAIObjectDuplicate;
+﻿unit Aul2MIRAIObjectDuplicate;
 
 // Parses, validates, and formats atomic object duplication requests using
 // copied scene snapshots only.

@@ -1,4 +1,4 @@
-unit Aul2MIRAIObjectClassifier;
+﻿unit Aul2MIRAIObjectClassifier;
 
 // 標準オブジェクトの先頭エフェクト名を外部向けの安定した種類名へ変換する。
 interface

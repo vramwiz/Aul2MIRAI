@@ -1,4 +1,4 @@
-unit Aul2MIRAIObjectTypes;
+﻿unit Aul2MIRAIObjectTypes;
 
 // AviUtl2からコピーした読み取り専用スナップショット型を定義する。
 

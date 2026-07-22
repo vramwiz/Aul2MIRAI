@@ -1,4 +1,4 @@
-unit Aul2MIRAIEditStateReader;
+﻿unit Aul2MIRAIEditStateReader;
 
 // EDIT_INFOと読み取り・編集セクションから現在の編集状態をコピーする。
 interface

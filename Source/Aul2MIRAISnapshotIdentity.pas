@@ -1,4 +1,4 @@
-unit Aul2MIRAISnapshotIdentity;
+﻿unit Aul2MIRAISnapshotIdentity;
 
 // 取得応答の一意IDと編集状態を表す決定的なSHA-256トークンを生成する。
 interface

@@ -1,4 +1,4 @@
-unit Aul2MIRAICommand;
+﻿unit Aul2MIRAICommand;
 
 // 外部要求を検証し、読み取り処理、JSON応答、画面通知を接続する。
 

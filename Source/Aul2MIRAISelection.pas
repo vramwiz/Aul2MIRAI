@@ -1,4 +1,4 @@
-unit Aul2MIRAISelection;
+﻿unit Aul2MIRAISelection;
 
 // 通常選択のフォーカス対象と複数選択対象を重複なしで統合する。
 interface

@@ -1,4 +1,4 @@
-unit Aul2MIRAIParameterWriter;
+﻿unit Aul2MIRAIParameterWriter;
 
 // Applies validated parameter changes inside one AviUtl2 edit section.
 // AviUtl2 registers every changed item in the callback as one Undo operation.

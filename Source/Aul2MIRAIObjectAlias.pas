@@ -1,4 +1,4 @@
-unit Aul2MIRAIObjectAlias;
+﻿unit Aul2MIRAIObjectAlias;
 
 // AviUtl2のUTF-8エイリアスから一覧表示に必要な最小情報だけを取り出す。
 

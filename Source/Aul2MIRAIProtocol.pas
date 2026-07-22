@@ -1,4 +1,4 @@
-unit Aul2MIRAIProtocol;
+﻿unit Aul2MIRAIProtocol;
 
 // Named Pipeで交換するJSONプロトコルの定数、検証、応答生成を担当する。
 

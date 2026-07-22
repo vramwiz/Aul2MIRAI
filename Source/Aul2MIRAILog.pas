@@ -1,4 +1,4 @@
-unit Aul2MIRAILog;
+﻿unit Aul2MIRAILog;
 
 // AI MIRAI画面に表示する短い操作ログを件数制限付きで保持する。
 

@@ -1,4 +1,4 @@
-unit Aul2MIRAIEditStateTypes;
+﻿unit Aul2MIRAIEditStateTypes;
 
 // 外部へ返す現在の編集状態をSDKポインターを含まない値として保持する。
 interface
