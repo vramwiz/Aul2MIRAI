@@ -18,7 +18,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\
 
 ## 対応AI環境
 
-推奨環境はCodexです。AviUtl2を操作する前に、Codexへ[`PIPE_INTERFACE.md`](PIPE_INTERFACE.md)と[`AI_USAGE.md`](AI_USAGE.md)を読み込ませてください。オブジェクトやフィルターを生成する場合は、確認済みエイリアスを記録した[`ALIAS_CATALOG.md`](ALIAS_CATALOG.md)も読み込ませてください。Codexは通信方式、コマンド、安全な操作手順をそのセッション内で理解し、PowerShellからAI MIRAIへ接続します。
+推奨環境はCodexです。AviUtl2を操作する前に、Codexへ[`PIPE_INTERFACE.md`](PIPE_INTERFACE.md)と[`AI_USAGE.md`](AI_USAGE.md)を読み込ませてください。オブジェクトやフィルターを生成する場合は[`ALIAS_CATALOG.md`](ALIAS_CATALOG.md)、設定値と実際の映像変化を扱う場合は[`EFFECT_LEARNING.md`](EFFECT_LEARNING.md)も読み込ませてください。Codexは通信方式、コマンド、安全な操作手順をそのセッション内で理解し、PowerShellからAI MIRAIへ接続します。
 
 Codex以外でも、ローカルの仕様書を読み、Windows PowerShellとNamed Pipeを使ってJSONを送受信できるCodex相当のAIエージェント環境であれば動作する可能性があります。ただし、Codex以外の環境での動作は保証していません。
 
@@ -43,6 +43,8 @@ AI MIRAI画面の「ヘルプ」ボタンから、既定ブラウザで[`vramwiz
 - 部分フィルタの`partial_filter`分類
 - 映像用`group_control`と音声用`audio_group_control`の分類
 - `camera_control`、`time_control`、`image_composition`の分類
+- 走査線・周辺ボケ光量の`screen_effect`分類
+- 独立配置フィルターの`filter_object`分類
 - レイヤー名とレイヤーの有効・ロック状態
 - オブジェクトの区間数、各区間の開始フレーム、フォーカス中の区間
 - 各エフェクトの有効・ロック状態

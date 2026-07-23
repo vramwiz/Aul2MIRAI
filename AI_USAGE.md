@@ -35,6 +35,8 @@
 | `move_objects` | 最大64個を衝突検査付きで一括移動 |
 | `preview_duplicate_objects` | 最大64件の複製元と空き生成先を検証 |
 | `duplicate_objects` | 最大64件を1回のUndo単位で一括複製 |
+| `preview_create_object_from_alias` | 任意エイリアス1個の生成内容と空き位置を検証 |
+| `create_object_from_alias` | 検証済みエイリアスから1個のオブジェクトを生成 |
 | `preview_set_edit_position` | カーソル位置と選択範囲の変更予定を検証 |
 | `set_edit_position` | カーソル位置と選択範囲を設定・解除 |
 | `preview_set_focus_object` | 一覧内オブジェクトへのフォーカス移動を実行せず検証 |
@@ -433,6 +435,27 @@ finally {
 
 `replace_source=true`では、編集コールバック内で元のエイリアスと詳細状態を保存してから元を削除し、フィルター追加済みオブジェクトを同じ位置へ生成します。生成または検証に失敗した場合は、保存した元エイリアスから元オブジェクトを復元して再検証します。復元自体に失敗した場合は`source_restore_failed`となるため、適用前にプロジェクトを保存してください。
 
+## エイリアスからの新規生成
+
+`preview_create_object_from_alias`は、現在の`state_token`、0-basedの`layer`と`frame`、正の`length`、UTF-8エイリアスを要求します。エイリアスは効果ブロックだけではなく、`[0]`、`layer`、`frame`を含む1個分の完全な形式にしてください。
+
+```json
+{
+  "protocol": "Aul2MIRAI",
+  "protocol_version": 1,
+  "command": "preview_create_object_from_alias",
+  "state_token": "sha256:bf4cb47cb3631a94048d10929f0e2dc2b733025f467596d878ec6f3fcfa716cc",
+  "layer": 0,
+  "frame": 300,
+  "length": 81,
+  "alias": "[0]\nlayer=0\nframe=300,380\n[0.0]\neffect.name=図形\n図形の種類=円\n..."
+}
+```
+
+プレビューでは、生成範囲の衝突、1 MiB以下のエイリアス、`effect.name`、素材パス、効果順を検証し、エイリアスのSHA-256を返します。実行時はコマンドを`create_object_from_alias`へ変更して`apply: true`を追加します。
+
+生成直後に配置、主効果、素材パス、効果順、全設定項目名と値を再取得します。相違がある場合は生成物を同じ編集コールバック内で削除し、`create_verification_failed`を返します。成功時は応答時点の`created_index`を返しますが、後続操作では必ず状態を再取得してください。
+
 ## オブジェクトへのフォーカス移動
 
 全オブジェクトの情報と単一オブジェクトの詳細は、選択状態に関係なく`get_scene_objects`と`get_object_details`で取得できます。未選択オブジェクトを後続の設定変更・移動・複製の対象にする場合だけ、フォーカス移動を使用します。
@@ -507,6 +530,7 @@ finally {
 - 関連する複数項目は`set_object_parameters`で1回のUndoへまとめてください。
 - 移動は必ず`preview_move_objects`で衝突と移動範囲を確認してください。
 - 複製は必ず`preview_duplicate_objects`で空き位置と生成範囲を確認してください。
+- 新規生成は必ず`preview_create_object_from_alias`で完全なエイリアスと空き位置を確認してください。
 - 編集位置は`preview_set_edit_position`で範囲を確認し、UI状態であることをユーザーへ伝えてください。
 - 未選択オブジェクトを編集対象にする場合は、`preview_set_focus_object`で対象を確認してからフォーカスを移動してください。
 - 削除はまだ要求しないでください。

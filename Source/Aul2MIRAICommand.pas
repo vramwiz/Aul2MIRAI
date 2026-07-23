@@ -17,6 +17,7 @@ uses
   Aul2MIRAIEditStateTypes,
   Aul2MIRAIFrameCapture,
   Aul2MIRAIObjectFormat,
+  Aul2MIRAIObjectCreate,
   Aul2MIRAIObjectDuplicate,
   Aul2MIRAIObjectDuplicator,
   Aul2MIRAIObjectFocus,
@@ -323,6 +324,96 @@ begin
     BeforeIdentity, AfterIdentity);
 end;
 
+function HandleObjectCreateRequest(const RequestText,
+  Command: string): string;
+var
+  AfterEditState : TAul2MIRAIEditState;
+  AfterIdentity  : TAul2MIRAISnapshotIdentity;
+  AfterSnapshot  : TAul2MIRAISceneSnapshot;
+  BeforeIdentity : TAul2MIRAISnapshotIdentity;
+  CreatedIndex   : Integer;
+  CreatedInfo    : TAul2MIRAIObjectInfo;
+  CreateRequest  : TAul2MIRAIObjectCreateRequest;
+  EditState      : TAul2MIRAIEditState;
+  ErrorCode      : string;
+  ErrorMessage   : string;
+  Preview        : TAul2MIRAIObjectCreatePreview;
+  RequireApply   : Boolean;
+  Snapshot       : TAul2MIRAISceneSnapshot;
+  StateToken     : string;
+begin
+  RequireApply := SameText(Command,
+    AUL2MIRAI_COMMAND_CREATE_OBJECT_FROM_ALIAS);
+  if not ParseObjectCreateRequest(RequestText, RequireApply, StateToken,
+    CreateRequest, ErrorCode, ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External create request rejected', '',
+      'WARN', ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+  if not ReadCurrentEditState(EditHandle, EditState, ErrorMessage) then
+    Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+  if not ReadCurrentSceneObjects(EditHandle, Snapshot, ErrorMessage) then
+    Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+  BeforeIdentity := CreateSnapshotIdentity(EditState, Snapshot);
+  if not SameText(StateToken, BeforeIdentity.StateToken) then
+  begin
+    QueueMIRAIViewUpdate('External create rejected - state changed', '',
+      'WARN', Command + ': state_changed');
+    Exit(BuildStateChangedError(Command, StateToken, BeforeIdentity));
+  end;
+  if not CreateObjectCreatePreview(Snapshot, CreateRequest, Preview,
+    ErrorCode, ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External create request rejected', '',
+      'WARN', ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+  if not RequireApply then
+  begin
+    QueueMIRAIViewUpdate(
+      Format('Create preview - %s at %d:%d',
+        [Preview.PrimaryEffect, Preview.Layer, Preview.StartFrame]),
+      '', 'OK', Command + ' -> one object');
+    Exit(BuildObjectCreatePreviewResponse(Preview, BeforeIdentity));
+  end;
+
+  if not ApplyObjectCreate(EditHandle, Preview, CreatedInfo,
+    ErrorCode, ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External create failed', '', 'ERROR',
+      ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+  if not ReadCurrentEditState(EditHandle, AfterEditState,
+    ErrorMessage) then
+  begin
+    ErrorMessage := 'The object was created, but the updated state ' +
+      'could not be read: ' + ErrorMessage;
+    Exit(BuildProtocolError(Command, 'post_write_read_failed',
+      ErrorMessage));
+  end;
+  if not ReadCurrentSceneObjects(EditHandle, AfterSnapshot,
+    ErrorMessage) then
+  begin
+    ErrorMessage := 'The object was created, but the updated objects ' +
+      'could not be read: ' + ErrorMessage;
+    Exit(BuildProtocolError(Command, 'post_write_read_failed',
+      ErrorMessage));
+  end;
+  if not ResolveCreatedObjectIndex(AfterSnapshot, Preview,
+    CreatedIndex, ErrorMessage) then
+    Exit(BuildProtocolError(Command,
+      'post_write_verification_failed', ErrorMessage));
+  AfterIdentity := CreateSnapshotIdentity(AfterEditState, AfterSnapshot);
+  QueueMIRAIViewUpdate(
+    Format('Create applied - %s at %d:%d',
+      [Preview.PrimaryEffect, Preview.Layer, Preview.StartFrame]),
+    '', 'OK', Command + ' -> one object created');
+  Result := BuildObjectCreateResponse(Preview, CreatedInfo, CreatedIndex,
+    BeforeIdentity, AfterIdentity);
+end;
+
 function HandleObjectMoveRequest(const RequestText, Command: string): string;
 var
   AfterEditState : TAul2MIRAIEditState;
@@ -611,6 +702,12 @@ begin
     if SameText(Command, AUL2MIRAI_COMMAND_PREVIEW_DUPLICATE_OBJECTS) or
        SameText(Command, AUL2MIRAI_COMMAND_DUPLICATE_OBJECTS) then
       Exit(HandleObjectDuplicateRequest(RequestText, Command));
+
+    if SameText(Command,
+         AUL2MIRAI_COMMAND_PREVIEW_CREATE_OBJECT_FROM_ALIAS) or
+       SameText(Command,
+         AUL2MIRAI_COMMAND_CREATE_OBJECT_FROM_ALIAS) then
+      Exit(HandleObjectCreateRequest(RequestText, Command));
 
     if SameText(Command, AUL2MIRAI_COMMAND_PREVIEW_EDIT_POSITION) or
        SameText(Command, AUL2MIRAI_COMMAND_SET_EDIT_POSITION) then

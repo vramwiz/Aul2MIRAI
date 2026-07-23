@@ -91,6 +91,82 @@ begin
   Result := True;
 end;
 
+function RepairKnownAliasNormalization(Edit: PEditSection;
+  Created: TObjectHandle; const ExpectedInfo: TAul2MIRAIObjectInfo;
+  out ErrorMessage: string): Boolean;
+const
+  EDGE_HEIGHT_ITEM = 'エッジ高さ';
+  HIDE_SHAPE_EFFECT = '図形で隠す(シーンチェンジ)';
+  HIDE_SHAPE_RADIAL_EFFECT = '図形で隠す(放射)(シーンチェンジ)';
+var
+  CreatedText  : string;
+  EffectIndex  : Integer;
+  EffectName   : string;
+  ExpectedText : string;
+  ParameterIndex: Integer;
+  ReadValue    : PAnsiChar;
+  Utf8Value    : UTF8String;
+begin
+  Result := False;
+  ErrorMessage := '';
+  if (Edit = nil) or (Created = nil) then
+  begin
+    ErrorMessage := 'Alias normalization repair requires a created object.';
+    Exit;
+  end;
+
+  for EffectIndex := 0 to High(ExpectedInfo.EffectDetails) do
+  begin
+    EffectName := ExpectedInfo.EffectDetails[EffectIndex].Name;
+    if (EffectName <> HIDE_SHAPE_EFFECT) and
+       (EffectName <> HIDE_SHAPE_RADIAL_EFFECT) then
+      Continue;
+    for ParameterIndex := 0 to
+      High(ExpectedInfo.EffectDetails[EffectIndex].Parameters) do
+    begin
+      if ExpectedInfo.EffectDetails[EffectIndex].
+        Parameters[ParameterIndex].Name <> EDGE_HEIGHT_ITEM then
+        Continue;
+      ExpectedText := ExpectedInfo.EffectDetails[EffectIndex].
+        Parameters[ParameterIndex].Value;
+      ReadValue := Edit^.GetObjectItemValue(Created, PWideChar(EffectName),
+        PWideChar(EDGE_HEIGHT_ITEM));
+      if ReadValue = nil then
+      begin
+        ErrorMessage := 'AviUtl2 could not read the normalized edge height.';
+        Exit;
+      end;
+      CreatedText := CopyUtf8Text(ReadValue);
+      if CreatedText = ExpectedText then
+        Continue;
+
+      Utf8Value := UTF8String(ExpectedText);
+      if not Edit^.SetObjectItemValue(Created, PWideChar(EffectName),
+        PWideChar(EDGE_HEIGHT_ITEM), PAnsiChar(Utf8Value)) then
+      begin
+        ErrorMessage := 'AviUtl2 rejected the edge height correction.';
+        Exit;
+      end;
+      ReadValue := Edit^.GetObjectItemValue(Created, PWideChar(EffectName),
+        PWideChar(EDGE_HEIGHT_ITEM));
+      if ReadValue = nil then
+      begin
+        ErrorMessage := 'AviUtl2 could not verify the edge height correction.';
+        Exit;
+      end;
+      CreatedText := CopyUtf8Text(ReadValue);
+      if CreatedText <> ExpectedText then
+      begin
+        ErrorMessage := Format(
+          'The corrected edge height differs (source="%s", created="%s").',
+          [ExpectedText, CreatedText]);
+        Exit;
+      end;
+    end;
+  end;
+  Result := True;
+end;
+
 procedure RemoveCreated(Context: TObjectDuplicateContext;
   Edit: PEditSection; LastIndex: Integer);
 var
@@ -319,6 +395,28 @@ begin
           RemoveCreated(Context, Edit, I);
           SetFailure(Context, I, 'create_verification_failed',
             'The created object range did not match the request.');
+        end;
+        Exit;
+      end;
+      if not RepairKnownAliasNormalization(Edit, Context.Created[I],
+        Context.SourceInfos[I], Difference) then
+      begin
+        if Context.Previews[I].ReplaceSource then
+        begin
+          if not RestoreReplacementSource(Context, Edit, I,
+            RestoreError) then
+            SetFailure(Context, I, 'source_restore_failed', RestoreError)
+          else
+            SetFailure(Context, I, 'create_verification_failed',
+              'The replacement normalization could not be corrected; ' +
+              'the original was restored: ' + Difference);
+        end
+        else
+        begin
+          RemoveCreated(Context, Edit, I);
+          SetFailure(Context, I, 'create_verification_failed',
+            'The created object normalization could not be corrected: ' +
+            Difference);
         end;
         Exit;
       end;

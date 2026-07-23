@@ -28,6 +28,9 @@ const
   EFFECT_CAMERA_CONTROL= #$30AB#$30E1#$30E9#$5236#$5FA1;
   EFFECT_TIME_CONTROL = #$6642#$9593#$5236#$5FA1'('#$30AA#$30D6#$30B8#$30A7#$30AF#$30C8')';
   EFFECT_IMAGE_COMPOSITION = #$753B#$50CF#$5408#$6210'('#$30AA#$30D6#$30B8#$30A7#$30AF#$30C8')';
+  EFFECT_SCANLINES = #$8D70#$67FB#$7DDA;
+  EFFECT_PERIPHERAL_BLUR_LIGHT = #$5468#$8FBA#$30DC#$30B1#$5149#$91CF;
+  EFFECT_FILTER_OBJECT = #$30D5#$30A3#$30EB#$30BF#$30AA#$30D6#$30B8#$30A7#$30AF#$30C8;
 
 function ClassifyObjectType(const PrimaryEffect: string): string;
 begin
@@ -63,6 +66,11 @@ begin
     Exit('time_control');
   if SameText(PrimaryEffect, EFFECT_IMAGE_COMPOSITION) then
     Exit('image_composition');
+  if SameText(PrimaryEffect, EFFECT_SCANLINES) or
+     SameText(PrimaryEffect, EFFECT_PERIPHERAL_BLUR_LIGHT) then
+    Exit('screen_effect');
+  if SameText(PrimaryEffect, EFFECT_FILTER_OBJECT) then
+    Exit('filter_object');
   Result := 'unknown';
 end;
 

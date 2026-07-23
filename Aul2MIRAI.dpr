@@ -28,6 +28,7 @@ uses
   Aul2MIRAIObjectFormat in 'Source\Aul2MIRAIObjectFormat.pas',
   Aul2MIRAIObjectMove in 'Source\Aul2MIRAIObjectMove.pas',
   Aul2MIRAIObjectMover in 'Source\Aul2MIRAIObjectMover.pas',
+  Aul2MIRAIObjectCreate in 'Source\Aul2MIRAIObjectCreate.pas',
   Aul2MIRAIObjectDuplicate in 'Source\Aul2MIRAIObjectDuplicate.pas',
   Aul2MIRAIObjectEquivalence in 'Source\Aul2MIRAIObjectEquivalence.pas',
   Aul2MIRAIObjectDuplicator in 'Source\Aul2MIRAIObjectDuplicator.pas',

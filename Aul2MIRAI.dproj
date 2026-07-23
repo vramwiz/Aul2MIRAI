@@ -110,6 +110,7 @@
         <DCCReference Include="Source\Aul2MIRAIObjectFormat.pas"/>
         <DCCReference Include="Source\Aul2MIRAIObjectMove.pas"/>
         <DCCReference Include="Source\Aul2MIRAIObjectMover.pas"/>
+        <DCCReference Include="Source\Aul2MIRAIObjectCreate.pas"/>
         <DCCReference Include="Source\Aul2MIRAIObjectDuplicate.pas"/>
         <DCCReference Include="Source\Aul2MIRAIObjectEquivalence.pas"/>
         <DCCReference Include="Source\Aul2MIRAIObjectDuplicator.pas"/>

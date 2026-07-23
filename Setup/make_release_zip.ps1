@@ -32,6 +32,11 @@ $packageFiles = @(
     Source = Join-Path $projectRoot 'ALIAS_CATALOG.md'
     Destination = 'ALIAS_CATALOG.md'
     Description = 'Alias generation catalog'
+  },
+  @{
+    Source = Join-Path $projectRoot 'EFFECT_LEARNING.md'
+    Destination = 'EFFECT_LEARNING.md'
+    Description = 'Filter effect learning catalog'
   }
 )
 
