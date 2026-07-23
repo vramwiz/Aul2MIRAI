@@ -32,6 +32,8 @@ const
   AUL2MIRAI_COMMAND_DUPLICATE_OBJECTS = 'duplicate_objects';
   AUL2MIRAI_COMMAND_PREVIEW_EDIT_POSITION = 'preview_set_edit_position';
   AUL2MIRAI_COMMAND_SET_EDIT_POSITION = 'set_edit_position';
+  AUL2MIRAI_COMMAND_PREVIEW_FOCUS_OBJECT = 'preview_set_focus_object';
+  AUL2MIRAI_COMMAND_SET_FOCUS_OBJECT = 'set_focus_object';
   AUL2MIRAI_COMMAND_CURRENT_FRAME_IMAGE = 'get_current_frame_image';
 
 function BuildProtocolRequest(const Command: string): string;

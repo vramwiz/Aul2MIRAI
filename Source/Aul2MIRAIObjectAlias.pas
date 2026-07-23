@@ -13,6 +13,8 @@ function ExtractEffectNames(const AliasText: string): TArray<string>;
 function ExtractMaterialPath(const AliasText: string): string;
 function ExtractEffectDetails(const AliasText: string):
   TArray<TAul2MIRAIEffectDetail>;
+function AppendRepeatedEffectBlock(const AliasText, EffectName: string;
+  out ResultAlias, ErrorMessage: string): Boolean;
 
 implementation
 
@@ -171,6 +173,116 @@ begin
       Inc(ParameterCount);
     end;
   finally
+    Lines.Free;
+  end;
+end;
+
+function ParseEffectSectionHeader(const Line: string; out ObjectPrefix: string;
+  out EffectIndex: Integer): Boolean;
+var
+  DotAt: Integer;
+  Inner: string;
+begin
+  Result := False;
+  ObjectPrefix := '';
+  EffectIndex := -1;
+  if (Length(Line) < 5) or (Line[1] <> '[') or
+     (Line[Length(Line)] <> ']') then
+    Exit;
+  Inner := Copy(Line, 2, Length(Line) - 2);
+  DotAt := LastDelimiter('.', Inner);
+  if (DotAt <= 1) or (DotAt >= Length(Inner)) or
+     not TryStrToInt(Copy(Inner, DotAt + 1, MaxInt), EffectIndex) or
+     (EffectIndex < 0) then
+    Exit;
+  ObjectPrefix := Copy(Inner, 1, DotAt - 1);
+  Result := ObjectPrefix <> '';
+end;
+
+function AppendRepeatedEffectBlock(const AliasText, EffectName: string;
+  out ResultAlias, ErrorMessage: string): Boolean;
+var
+  BlockEffectName: string;
+  BlockEnd       : Integer;
+  BlockPrefix    : string;
+  BlockStart     : Integer;
+  EffectIndex    : Integer;
+  I              : Integer;
+  J              : Integer;
+  MaxEffectIndex : Integer;
+  ResultLines    : TStringList;
+  SourceEnd      : Integer;
+  SourcePrefix   : string;
+  SourceStart    : Integer;
+  Lines          : TStringList;
+begin
+  Result := False;
+  ResultAlias := '';
+  ErrorMessage := '';
+  if Trim(EffectName) = '' then
+  begin
+    ErrorMessage := 'repeat_effect must not be empty.';
+    Exit;
+  end;
+  Lines := TStringList.Create;
+  ResultLines := TStringList.Create;
+  try
+    Lines.Text := AliasText;
+    SourceStart := -1;
+    SourceEnd := -1;
+    SourcePrefix := '';
+    MaxEffectIndex := -1;
+    I := 0;
+    while I < Lines.Count do
+    begin
+      if not ParseEffectSectionHeader(Lines[I], BlockPrefix,
+        EffectIndex) then
+      begin
+        Inc(I);
+        Continue;
+      end;
+      BlockStart := I;
+      BlockEnd := I + 1;
+      while (BlockEnd < Lines.Count) and
+        not ((Lines[BlockEnd] <> '') and (Lines[BlockEnd][1] = '[')) do
+        Inc(BlockEnd);
+      if EffectIndex > MaxEffectIndex then
+        MaxEffectIndex := EffectIndex;
+      BlockEffectName := '';
+      for J := BlockStart + 1 to BlockEnd - 1 do
+        if StartsText(EFFECT_KEY, Lines[J]) then
+        begin
+          BlockEffectName := Trim(Copy(Lines[J], Length(EFFECT_KEY) + 1,
+            MaxInt));
+          Break;
+        end;
+      if BlockEffectName = EffectName then
+      begin
+        SourceStart := BlockStart;
+        SourceEnd := BlockEnd;
+        SourcePrefix := BlockPrefix;
+      end;
+      I := BlockEnd;
+    end;
+    if SourceStart < 0 then
+    begin
+      ErrorMessage := 'The requested repeat_effect was not found in the alias.';
+      Exit;
+    end;
+    if MaxEffectIndex >= High(Integer) then
+    begin
+      ErrorMessage := 'The alias effect index cannot be extended.';
+      Exit;
+    end;
+
+    ResultLines.Assign(Lines);
+    ResultLines.Add(Format('[%s.%d]', [SourcePrefix, MaxEffectIndex + 1]));
+    for I := SourceStart + 1 to SourceEnd - 1 do
+      ResultLines.Add(Lines[I]);
+    ResultAlias := ResultLines.Text;
+    Result := True;
+  finally
+    ResultLines.Free;
     Lines.Free;
   end;
 end;

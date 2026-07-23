@@ -2,6 +2,8 @@
 
 この文書は、AI MIRAIの外部操作コマンドをCodexなどのAIが作業開始時に理解するための仕様書です。
 
+オブジェクトまたはフィルターを生成する場合は、サンプルから確認済みのブロックと値形式を記録した[`ALIAS_CATALOG.md`](ALIAS_CATALOG.md)も読み込んでください。本書には生成用エイリアスそのものを重複記載しません。
+
 ## 対応バージョン
 
 - プロトコル: `1`
@@ -35,6 +37,8 @@
 | `duplicate_objects` | 最大64件を1回のUndo単位で一括複製 |
 | `preview_set_edit_position` | カーソル位置と選択範囲の変更予定を検証 |
 | `set_edit_position` | カーソル位置と選択範囲を設定・解除 |
+| `preview_set_focus_object` | 一覧内オブジェクトへのフォーカス移動を実行せず検証 |
+| `set_focus_object` | 一覧内オブジェクトへフォーカスを移動 |
 
 ## 接続と取得
 
@@ -408,7 +412,8 @@ finally {
     {
       "source_index": 0,
       "layer": 1,
-      "frame": 300
+      "frame": 300,
+      "repeat_effect": "色調補正"
     }
   ]
 }
@@ -416,7 +421,37 @@ finally {
 
 複製元、生成先、終了フレーム、`duplicate_count`を確認します。適用時はコマンドを`duplicate_objects`へ変更し、`apply: true`を追加します。複製元の長さと設定内容は維持されます。
 
+`repeat_effect`は省略可能です。指定した場合、元オブジェクト内の最後の同名エフェクトブロックを同じ設定でもう1段、エフェクト列の末尾へ追加します。
+
+元を残さず、同じ位置のオブジェクトへ疑似的にフィルターを追加する場合は、`layer`と`frame`へ元と同じ位置を指定し、`repeat_effect`と`replace_source: true`を併用します。安全上、`replace_source`は1要求につき1オブジェクトだけに制限されます。
+
 成功応答の`created_index`は応答時点の連番です。後続操作では保存せず、必ず状態を再取得して配置、種類、名称などから対象を確認してください。AviUtl2の内部正規化により、複製元と生成物の`content_digest`が異なる場合があります。
+
+成功した各複製結果には`recreation_verification`が含まれます。`verified=true`は、長さ、名称、種類、素材パス、エフェクト順、全設定値、有効・ロック状態、中間点の相対位置、トラックバー情報が生成直後に一致したことを示します。配置、選択、フォーカス、正規化後の`content_digest`は比較対象外です。外部フィルターではエイリアス再生成時に設定値が変わる場合があり、その場合は`create_verification_failed`となって生成物は削除されます。
+
+`repeat_effect`指定時は、元の設定へ対象エフェクトが1段追加された状態を期待値として比較します。元に存在しない名前は`repeat_effect_not_found`、エイリアス変換に失敗した場合は`repeat_effect_failed`となります。
+
+`replace_source=true`では、編集コールバック内で元のエイリアスと詳細状態を保存してから元を削除し、フィルター追加済みオブジェクトを同じ位置へ生成します。生成または検証に失敗した場合は、保存した元エイリアスから元オブジェクトを復元して再検証します。復元自体に失敗した場合は`source_restore_failed`となるため、適用前にプロジェクトを保存してください。
+
+## オブジェクトへのフォーカス移動
+
+全オブジェクトの情報と単一オブジェクトの詳細は、選択状態に関係なく`get_scene_objects`と`get_object_details`で取得できます。未選択オブジェクトを後続の設定変更・移動・複製の対象にする場合だけ、フォーカス移動を使用します。
+
+先に`get_scene_objects`を実行し、同じ応答の最新`state_token`と対象の`index`を指定します。
+
+```json
+{
+  "protocol": "Aul2MIRAI",
+  "protocol_version": 1,
+  "command": "preview_set_focus_object",
+  "state_token": "sha256:bf4cb47cb3631a94048d10929f0e2dc2b733025f467596d878ec6f3fcfa716cc",
+  "target_index": 0
+}
+```
+
+応答の`preview.target`で種類、配置範囲、対象indexを確認します。`will_change=false`なら、そのオブジェクトはすでにフォーカスされています。適用時はコマンドを`set_focus_object`へ変更し、`apply: true`を追加します。
+
+適用直前には、現在のフォーカス、対象の配置範囲、エイリアス内容のSHA-256をSDK編集コールバック内で再検証します。成功後も一覧を再取得し、対象の`focused=true`を確認してから新しい`state_token`を返します。フォーカス移動はUI状態の変更であり、Undo項目を作りません。通常選択のフォーカス対象は`get_selected_objects`にも含まれるため、その後に既存の設定変更・移動・複製コマンドを使用できます。
 
 ## カーソル位置と選択範囲
 
@@ -473,6 +508,7 @@ finally {
 - 移動は必ず`preview_move_objects`で衝突と移動範囲を確認してください。
 - 複製は必ず`preview_duplicate_objects`で空き位置と生成範囲を確認してください。
 - 編集位置は`preview_set_edit_position`で範囲を確認し、UI状態であることをユーザーへ伝えてください。
+- 未選択オブジェクトを編集対象にする場合は、`preview_set_focus_object`で対象を確認してからフォーカスを移動してください。
 - 削除はまだ要求しないでください。
 - 取得結果は要求時点のスナップショットです。AviUtl2で編集した後は再取得してください。
 - `index`や表示名だけを永続IDとして保存しないでください。

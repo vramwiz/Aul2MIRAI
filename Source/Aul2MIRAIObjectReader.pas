@@ -14,6 +14,13 @@ function ReadCurrentSceneObjects(EditHandle: PEditHandle;
   IncludeSelectedDetails: Boolean = False; DetailObjectIndex: Integer = -1;
   DetailRangeStart: Integer = -1; DetailRangeEnd: Integer = -1): Boolean;
 
+// Copies one object while an AviUtl2 read/edit section is active.  This is
+// also used to compare an alias-created object with its source before the
+// edit callback is allowed to complete.
+function ReadObjectSnapshot(Edit: PEditSection; Obj: TObjectHandle;
+  IncludeDetails, Focused: Boolean; out Info: TAul2MIRAIObjectInfo;
+  out ErrorMessage: string): Boolean;
+
 implementation
 
 uses
@@ -246,9 +253,57 @@ begin
   Result := True;
 end;
 
+function ReadObjectSnapshot(Edit: PEditSection; Obj: TObjectHandle;
+  IncludeDetails, Focused: Boolean; out Info: TAul2MIRAIObjectInfo;
+  out ErrorMessage: string): Boolean;
+var
+  AliasText : string;
+  LayerFrame: TObjectLayerFrame;
+begin
+  Result := False;
+  Info := Default(TAul2MIRAIObjectInfo);
+  Info.FocusedSection := -1;
+  ErrorMessage := '';
+  if (Edit = nil) or (Obj = nil) then
+  begin
+    ErrorMessage := 'Object snapshot requires a valid edit section and object.';
+    Exit;
+  end;
+
+  LayerFrame := Edit^.GetObjectLayerFrame(Obj);
+  if (LayerFrame.Layer < 0) or (LayerFrame.StartFrame < 0) or
+     (LayerFrame.EndFrame < LayerFrame.StartFrame) then
+  begin
+    ErrorMessage := Format('Invalid object range at layer %d, frame %d.',
+      [LayerFrame.Layer, LayerFrame.StartFrame]);
+    Exit;
+  end;
+  Info.Layer := LayerFrame.Layer;
+  Info.StartFrame := LayerFrame.StartFrame;
+  Info.EndFrame := LayerFrame.EndFrame;
+  Info.Name := CopyWideText(Edit^.GetObjectName(Obj));
+  AliasText := CopyUtf8Text(Edit^.GetObjectAlias(Obj));
+  if AliasText = '' then
+  begin
+    ErrorMessage := 'AviUtl2 returned no object alias data.';
+    Exit;
+  end;
+  Info.PrimaryEffect := ExtractPrimaryEffect(AliasText);
+  Info.ObjectType := ClassifyObjectType(Info.PrimaryEffect);
+  Info.MaterialPath := ExtractMaterialPath(AliasText);
+  Info.Effects := ExtractEffectNames(AliasText);
+  Info.ContentDigest := LowerCase(THashSHA2.GetHashString(AliasText));
+  if IncludeDetails then
+    Info.EffectDetails := ExtractEffectDetails(AliasText);
+  if not ReadObjectSections(Edit, Obj, Focused, Info, ErrorMessage) or
+     not ReadEffectStates(Edit, Obj, Info, ErrorMessage) or
+     not ReadTrackDetails(Edit, Obj, Info, ErrorMessage) then
+    Exit;
+  Result := True;
+end;
+
 procedure ReadSceneCallback(Param: Pointer; Edit: PEditSection); cdecl;
 var
-  AliasText      : string;                       // コピーしたオブジェクトエイリアス
   Context        : TObjectReadContext;           // 呼び出し元の取得コンテキスト
   FocusHandle    : TObjectHandle;                // 通常選択されているオブジェクト
   Frame          : Integer;                      // 現在レイヤーの探索開始フレーム
@@ -305,40 +360,21 @@ begin
           Exit;
         end;
 
-        Info := Default(TAul2MIRAIObjectInfo);
-        Info.FocusedSection := -1;
+        if not ReadObjectSnapshot(Edit, Obj,
+          Context.IncludeSelectedDetails and
+          (ContainsObjectHandle(Selected, Obj) or
+           ((LayerFrame.StartFrame <= Context.Snapshot.CursorFrame) and
+            (LayerFrame.EndFrame >= Context.Snapshot.CursorFrame)) or
+           (ObjectCount = Context.DetailObjectIndex) or
+           ((Context.DetailRangeStart >= 0) and
+            (Context.DetailRangeEnd >= Context.DetailRangeStart) and
+            (LayerFrame.StartFrame <= Context.DetailRangeEnd) and
+            (LayerFrame.EndFrame >= Context.DetailRangeStart))),
+          Obj = FocusHandle, Info, Context.ErrorMessage) then
+          Exit;
         Info.Index := ObjectCount;
-        Info.Layer := LayerFrame.Layer;
-        Info.StartFrame := LayerFrame.StartFrame;
-        Info.EndFrame := LayerFrame.EndFrame;
         Info.Selected := ContainsObjectHandle(Selected, Obj);
         Info.Focused := Obj = FocusHandle;
-        Info.Name := CopyWideText(Edit^.GetObjectName(Obj));
-        AliasText := CopyUtf8Text(Edit^.GetObjectAlias(Obj));
-        Info.PrimaryEffect := ExtractPrimaryEffect(AliasText);
-        Info.ObjectType := ClassifyObjectType(Info.PrimaryEffect);
-        Info.MaterialPath := ExtractMaterialPath(AliasText);
-        Info.Effects := ExtractEffectNames(AliasText);
-        Info.ContentDigest := LowerCase(THashSHA2.GetHashString(AliasText));
-        if Context.IncludeSelectedDetails and
-           (Info.Selected or
-            ((Info.StartFrame <= Context.Snapshot.CursorFrame) and
-             (Info.EndFrame >= Context.Snapshot.CursorFrame)) or
-            (Info.Index = Context.DetailObjectIndex) or
-            ((Context.DetailRangeStart >= 0) and
-             (Context.DetailRangeEnd >= Context.DetailRangeStart) and
-             (Info.StartFrame <= Context.DetailRangeEnd) and
-             (Info.EndFrame >= Context.DetailRangeStart))) then
-          Info.EffectDetails := ExtractEffectDetails(AliasText);
-        if not ReadObjectSections(Edit, Obj, Info.Focused, Info,
-          Context.ErrorMessage) then
-          Exit;
-        if not ReadEffectStates(Edit, Obj, Info,
-          Context.ErrorMessage) then
-          Exit;
-        if not ReadTrackDetails(Edit, Obj, Info,
-          Context.ErrorMessage) then
-          Exit;
         AppendObject(Objects, ObjectCount, Info);
 
         if ObjectCount >= MAX_OBJECT_COUNT then

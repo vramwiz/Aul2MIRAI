@@ -14,6 +14,8 @@ type
     SourceIndex : Integer;
     Layer       : Integer;
     Frame       : Integer;
+    RepeatEffect: string;
+    ReplaceSource: Boolean;
   end;
 
   TAul2MIRAIObjectDuplicatePreview = record
@@ -29,6 +31,8 @@ type
     TargetStart  : Integer;
     TargetEnd    : Integer;
     FrameLength  : Integer;
+    RepeatEffect : string;
+    ReplaceSource: Boolean;
   end;
 
 function ParseObjectDuplicateRequest(const RequestText: string;
@@ -65,6 +69,7 @@ const
   MAX_DUPLICATE_COUNT = 64;
   MAX_DUPLICATE_FRAME = 2000000000;
   MAX_DUPLICATE_LAYER = 9999;
+  MAX_EFFECT_NAME_CHARS = 256;
 
 function RequireInteger(Root: TJSONObject; const Name: string;
   out Value: Integer; out ErrorCode, ErrorMessage: string): Boolean;
@@ -93,6 +98,9 @@ var
   I             : Integer;
   Json          : TJSONValue;
   Root          : TJSONObject;
+  RepeatValue   : TJSONValue;
+  ReplaceValue  : TJSONValue;
+  ReplaceCount  : Integer;
 begin
   Result := False;
   StateToken := '';
@@ -147,6 +155,7 @@ begin
     end;
 
     SetLength(Duplicates, DuplicatesJson.Count);
+    ReplaceCount := 0;
     for I := 0 to DuplicatesJson.Count - 1 do
     begin
       DuplicateJson := DuplicatesJson.Items[I];
@@ -164,6 +173,59 @@ begin
         Duplicates[I].Frame, ErrorCode, ErrorMessage) then
       begin
         ErrorMessage := Format('duplicates[%d]: %s', [I, ErrorMessage]);
+        Exit;
+      end;
+      Duplicates[I].RepeatEffect := '';
+      RepeatValue := TJSONObject(DuplicateJson).GetValue('repeat_effect');
+      if RepeatValue <> nil then
+      begin
+        if not (RepeatValue is TJSONString) then
+        begin
+          ErrorCode := 'invalid_repeat_effect';
+          ErrorMessage := Format(
+            'duplicates[%d].repeat_effect must be a string.', [I]);
+          Exit;
+        end;
+        Duplicates[I].RepeatEffect := TJSONString(RepeatValue).Value;
+        if (Duplicates[I].RepeatEffect = '') or
+           (Length(Duplicates[I].RepeatEffect) > MAX_EFFECT_NAME_CHARS) then
+        begin
+          ErrorCode := 'invalid_repeat_effect';
+          ErrorMessage := Format(
+            'duplicates[%d].repeat_effect has an invalid length.', [I]);
+          Exit;
+        end;
+      end;
+      Duplicates[I].ReplaceSource := False;
+      ReplaceValue := TJSONObject(DuplicateJson).GetValue('replace_source');
+      if ReplaceValue <> nil then
+      begin
+        if not (ReplaceValue is TJSONBool) then
+        begin
+          ErrorCode := 'invalid_replace_source';
+          ErrorMessage := Format(
+            'duplicates[%d].replace_source must be a boolean.', [I]);
+          Exit;
+        end;
+        Duplicates[I].ReplaceSource := TJSONBool(ReplaceValue).AsBoolean;
+        if Duplicates[I].ReplaceSource then
+          Inc(ReplaceCount);
+      end;
+    end;
+
+    if ReplaceCount > 0 then
+    begin
+      if DuplicatesJson.Count <> 1 then
+      begin
+        ErrorCode := 'replace_source_requires_single_item';
+        ErrorMessage :=
+          'replace_source is limited to one duplicate per request.';
+        Exit;
+      end;
+      if Duplicates[0].RepeatEffect = '' then
+      begin
+        ErrorCode := 'replace_source_requires_repeat_effect';
+        ErrorMessage := 'replace_source requires repeat_effect.';
         Exit;
       end;
     end;
@@ -220,6 +282,8 @@ var
   Item : TAul2MIRAIObjectInfo;
   J    : Integer;
   Other: TAul2MIRAIObjectInfo;
+  EffectFound: Boolean;
+  EffectName : string;
 begin
   Result := False;
   SetLength(Previews, Length(Duplicates));
@@ -259,6 +323,22 @@ begin
       Exit;
     end;
     Previews[I].FrameLength := Item.EndFrame - Item.StartFrame + 1;
+    EffectFound := Duplicates[I].RepeatEffect = '';
+    if not EffectFound then
+      for EffectName in Item.Effects do
+        if EffectName = Duplicates[I].RepeatEffect then
+        begin
+          EffectFound := True;
+          Break;
+        end;
+    if not EffectFound then
+    begin
+      ErrorCode := 'repeat_effect_not_found';
+      ErrorMessage := Format(
+        'duplicates[%d].repeat_effect was not found on the source object.',
+        [I]);
+      Exit;
+    end;
     if Int64(Duplicates[I].Frame) + Previews[I].FrameLength - 1 >
        MAX_DUPLICATE_FRAME then
     begin
@@ -279,9 +359,24 @@ begin
     Previews[I].TargetStart := Duplicates[I].Frame;
     Previews[I].TargetEnd := Duplicates[I].Frame +
       Previews[I].FrameLength - 1;
+    Previews[I].RepeatEffect := Duplicates[I].RepeatEffect;
+    Previews[I].ReplaceSource := Duplicates[I].ReplaceSource;
+
+    if Previews[I].ReplaceSource and
+       ((Previews[I].TargetLayer <> Previews[I].SourceLayer) or
+        (Previews[I].TargetStart <> Previews[I].SourceStart)) then
+    begin
+      ErrorCode := 'invalid_replace_destination';
+      ErrorMessage := Format(
+        'duplicates[%d] must target the source position when replace_source is true.',
+        [I]);
+      Exit;
+    end;
 
     for Other in Snapshot.Objects do
       if (Other.Layer = Previews[I].TargetLayer) and
+         not (Previews[I].ReplaceSource and
+              (Other.Index = Previews[I].SourceIndex)) and
          RangesOverlap(Other.StartFrame, Other.EndFrame,
            Previews[I].TargetStart, Previews[I].TargetEnd) then
       begin
@@ -361,8 +456,10 @@ function BuildDuplicateJson(
   const Preview: TAul2MIRAIObjectDuplicatePreview;
   IncludeResult: Boolean; CreatedIndex: Integer): TJSONObject;
 var
+  ComparedJson: TJSONArray;
   SourceJson: TJSONObject;
   TargetJson: TJSONObject;
+  VerificationJson: TJSONObject;
 begin
   Result := TJSONObject.Create;
   SourceJson := TJSONObject.Create;
@@ -380,10 +477,31 @@ begin
   TargetJson.AddPair('start_frame', TJSONNumber.Create(Preview.TargetStart));
   TargetJson.AddPair('end_frame', TJSONNumber.Create(Preview.TargetEnd));
   Result.AddPair('frame_length', TJSONNumber.Create(Preview.FrameLength));
+  if Preview.RepeatEffect <> '' then
+    Result.AddPair('repeat_effect', Preview.RepeatEffect);
+  if Preview.ReplaceSource then
+    Result.AddPair('replace_source', TJSONBool.Create(True));
   if IncludeResult then
   begin
     Result.AddPair('applied', TJSONBool.Create(True));
     Result.AddPair('created_index', TJSONNumber.Create(CreatedIndex));
+    VerificationJson := TJSONObject.Create;
+    Result.AddPair('recreation_verification', VerificationJson);
+    VerificationJson.AddPair('verified', TJSONBool.Create(True));
+    VerificationJson.AddPair('method', 'semantic_object_snapshot');
+    ComparedJson := TJSONArray.Create;
+    VerificationJson.AddPair('compared', ComparedJson);
+    ComparedJson.Add('frame_length');
+    ComparedJson.Add('name');
+    ComparedJson.Add('object_type');
+    ComparedJson.Add('material_path');
+    ComparedJson.Add('effect_order');
+    ComparedJson.Add('effect_parameters');
+    ComparedJson.Add('effect_enable_lock');
+    ComparedJson.Add('section_relative_frames');
+    ComparedJson.Add('track_modes_parameters_flags_groups');
+    VerificationJson.AddPair('ignored_difference',
+      'placement_selection_focus_and_normalized_alias_digest');
   end;
 end;
 

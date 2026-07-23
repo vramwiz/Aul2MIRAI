@@ -18,7 +18,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\
 
 ## 対応AI環境
 
-推奨環境はCodexです。AviUtl2を操作する前に、Codexへ[`PIPE_INTERFACE.md`](PIPE_INTERFACE.md)と[`AI_USAGE.md`](AI_USAGE.md)を読み込ませてください。Codexは通信方式、コマンド、安全な操作手順をそのセッション内で理解し、PowerShellからAI MIRAIへ接続します。
+推奨環境はCodexです。AviUtl2を操作する前に、Codexへ[`PIPE_INTERFACE.md`](PIPE_INTERFACE.md)と[`AI_USAGE.md`](AI_USAGE.md)を読み込ませてください。オブジェクトやフィルターを生成する場合は、確認済みエイリアスを記録した[`ALIAS_CATALOG.md`](ALIAS_CATALOG.md)も読み込ませてください。Codexは通信方式、コマンド、安全な操作手順をそのセッション内で理解し、PowerShellからAI MIRAIへ接続します。
 
 Codex以外でも、ローカルの仕様書を読み、Windows PowerShellとNamed Pipeを使ってJSONを送受信できるCodex相当のAIエージェント環境であれば動作する可能性があります。ただし、Codex以外の環境での動作は保証していません。
 
@@ -37,6 +37,12 @@ AI MIRAI画面の「ヘルプ」ボタンから、既定ブラウザで[`vramwiz
 - 通常選択および複数選択中のオブジェクト
 - 最新状態のindexを指定した単一オブジェクトの詳細
 - 標準オブジェクトの種類、素材パス、適用エフェクト名
+- OBJを含むモデルファイルの`model`分類
+- 画像用`frame_buffer`と音声用`audio_buffer`の分類
+- 直前オブジェクトの`previous_object`分類
+- 部分フィルタの`partial_filter`分類
+- 映像用`group_control`と音声用`audio_group_control`の分類
+- `camera_control`、`time_control`、`image_composition`の分類
 - レイヤー名とレイヤーの有効・ロック状態
 - オブジェクトの区間数、各区間の開始フレーム、フォーカス中の区間
 - 各エフェクトの有効・ロック状態
@@ -48,6 +54,9 @@ AI MIRAI画面の「ヘルプ」ボタンから、既定ブラウザで[`vramwiz
 - 最大64件の設定値を事前確認し、1回のUndo単位で一括変更
 - 最大64個の選択オブジェクトを、衝突検査付きでプレビュー・一括移動
 - 最大64個の選択オブジェクトを、空き位置へプレビュー・一括複製
+- 既存フィルターブロックを繰り返したオブジェクトの検証付き生成
+- 元オブジェクトを同位置のフィルター追加済みオブジェクトへ検証付きで置換
+- 未選択オブジェクトへの安全確認付きフォーカス移動
 - カーソル位置と選択範囲のプレビュー・設定・解除
 - 現在のカーソルフレームを一時BMPへレンダリングして取得
 

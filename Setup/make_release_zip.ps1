@@ -27,6 +27,11 @@ $packageFiles = @(
     Source = Join-Path $projectRoot 'PIPE_INTERFACE.md'
     Destination = 'PIPE_INTERFACE.md'
     Description = 'Named Pipe interface guide'
+  },
+  @{
+    Source = Join-Path $projectRoot 'ALIAS_CATALOG.md'
+    Destination = 'ALIAS_CATALOG.md'
+    Description = 'Alias generation catalog'
   }
 )
 

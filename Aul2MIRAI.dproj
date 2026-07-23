@@ -111,7 +111,10 @@
         <DCCReference Include="Source\Aul2MIRAIObjectMove.pas"/>
         <DCCReference Include="Source\Aul2MIRAIObjectMover.pas"/>
         <DCCReference Include="Source\Aul2MIRAIObjectDuplicate.pas"/>
+        <DCCReference Include="Source\Aul2MIRAIObjectEquivalence.pas"/>
         <DCCReference Include="Source\Aul2MIRAIObjectDuplicator.pas"/>
+        <DCCReference Include="Source\Aul2MIRAIObjectFocus.pas"/>
+        <DCCReference Include="Source\Aul2MIRAIObjectFocuser.pas"/>
         <DCCReference Include="Source\Aul2MIRAIProtocol.pas"/>
         <DCCReference Include="Source\Aul2MIRAICommand.pas"/>
         <DCCReference Include="Source\Aul2MIRAIPipeServer.pas"/>

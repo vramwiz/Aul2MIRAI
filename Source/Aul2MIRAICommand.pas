@@ -19,6 +19,8 @@ uses
   Aul2MIRAIObjectFormat,
   Aul2MIRAIObjectDuplicate,
   Aul2MIRAIObjectDuplicator,
+  Aul2MIRAIObjectFocus,
+  Aul2MIRAIObjectFocuser,
   Aul2MIRAIObjectMove,
   Aul2MIRAIObjectMover,
   Aul2MIRAIObjectQuery,
@@ -30,6 +32,103 @@ uses
   Aul2MIRAIProtocol,
   Aul2MIRAISnapshotIdentity,
   Aul2MIRAIView;
+
+function HandleObjectFocusRequest(const RequestText,
+  Command: string): string;
+var
+  AfterEditState : TAul2MIRAIEditState;
+  AfterIdentity  : TAul2MIRAISnapshotIdentity;
+  AfterSnapshot  : TAul2MIRAISceneSnapshot;
+  BeforeIdentity : TAul2MIRAISnapshotIdentity;
+  EditState      : TAul2MIRAIEditState;
+  ErrorCode      : string;
+  ErrorMessage   : string;
+  Item           : TAul2MIRAIObjectInfo;
+  Preview        : TAul2MIRAIObjectFocusPreview;
+  RequireApply   : Boolean;
+  Snapshot       : TAul2MIRAISceneSnapshot;
+  StateToken     : string;
+  TargetIndex    : Integer;
+  Verified       : Boolean;
+begin
+  RequireApply := SameText(Command, AUL2MIRAI_COMMAND_SET_FOCUS_OBJECT);
+  if not ParseObjectFocusRequest(RequestText, RequireApply, StateToken,
+    TargetIndex, ErrorCode, ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External focus request rejected', '', 'WARN',
+      ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+  if not ReadCurrentEditState(EditHandle, EditState, ErrorMessage) then
+    Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+  if not ReadCurrentSceneObjects(EditHandle, Snapshot, ErrorMessage) then
+    Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+  BeforeIdentity := CreateSnapshotIdentity(EditState, Snapshot);
+  if not SameText(StateToken, BeforeIdentity.StateToken) then
+  begin
+    QueueMIRAIViewUpdate('External focus rejected - state changed', '',
+      'WARN', Command + ': state_changed');
+    Exit(BuildStateChangedError(Command, StateToken, BeforeIdentity));
+  end;
+  if not CreateObjectFocusPreview(Snapshot, TargetIndex, Preview,
+    ErrorCode, ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External focus request rejected', '', 'WARN',
+      ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+  if not RequireApply then
+  begin
+    QueueMIRAIViewUpdate('Object focus preview', '', 'OK',
+      Format('%s -> object %d', [Command, TargetIndex]));
+    Exit(BuildObjectFocusPreviewResponse(Preview, BeforeIdentity));
+  end;
+  if not Preview.WillChange then
+  begin
+    QueueMIRAIViewUpdate('Object focus skipped - unchanged', '', 'OK',
+      Format('%s -> object %d', [Command, TargetIndex]));
+    Exit(BuildObjectFocusResponse(Preview, BeforeIdentity,
+      BeforeIdentity));
+  end;
+  if not ApplyObjectFocus(EditHandle, Preview, ErrorCode,
+    ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External focus change failed', '', 'ERROR',
+      ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+  if not ReadCurrentEditState(EditHandle, AfterEditState,
+    ErrorMessage) then
+    Exit(BuildProtocolError(Command, 'post_write_read_failed',
+      ErrorMessage));
+  if not ReadCurrentSceneObjects(EditHandle, AfterSnapshot,
+    ErrorMessage) then
+    Exit(BuildProtocolError(Command, 'post_write_read_failed',
+      ErrorMessage));
+  Verified := False;
+  for Item in AfterSnapshot.Objects do
+    if Item.Index = Preview.Target.Index then
+    begin
+      Verified := Item.Focused and
+        (Item.Layer = Preview.Target.Layer) and
+        (Item.StartFrame = Preview.Target.StartFrame) and
+        (Item.EndFrame = Preview.Target.EndFrame) and
+        SameText(Item.ContentDigest, Preview.Target.ContentDigest);
+      Break;
+    end;
+  if not Verified then
+  begin
+    ErrorMessage :=
+      'The focused object read after the change did not match the request.';
+    Exit(BuildProtocolError(Command, 'post_write_verification_failed',
+      ErrorMessage));
+  end;
+  AfterIdentity := CreateSnapshotIdentity(AfterEditState, AfterSnapshot);
+  QueueMIRAIViewUpdate('Object focus changed', '', 'OK',
+    Format('%s -> object %d', [Command, TargetIndex]));
+  Result := BuildObjectFocusResponse(Preview, BeforeIdentity,
+    AfterIdentity);
+end;
 
 function HandleEditPositionRequest(const RequestText,
   Command: string): string;
@@ -516,6 +615,10 @@ begin
     if SameText(Command, AUL2MIRAI_COMMAND_PREVIEW_EDIT_POSITION) or
        SameText(Command, AUL2MIRAI_COMMAND_SET_EDIT_POSITION) then
       Exit(HandleEditPositionRequest(RequestText, Command));
+
+    if SameText(Command, AUL2MIRAI_COMMAND_PREVIEW_FOCUS_OBJECT) or
+       SameText(Command, AUL2MIRAI_COMMAND_SET_FOCUS_OBJECT) then
+      Exit(HandleObjectFocusRequest(RequestText, Command));
 
     if SameText(Command, AUL2MIRAI_COMMAND_OBJECT_DETAILS) then
     begin
