@@ -35,8 +35,10 @@
 | `move_objects` | 最大64個を衝突検査付きで一括移動 |
 | `preview_duplicate_objects` | 最大64件の複製元と空き生成先を検証 |
 | `duplicate_objects` | 最大64件を1回のUndo単位で一括複製 |
-| `preview_create_object_from_alias` | 任意エイリアス1個の生成内容と空き位置を検証 |
-| `create_object_from_alias` | 検証済みエイリアスから1個のオブジェクトを生成 |
+| `preview_create_object_from_alias` | エイリアスまたは標準効果初期値1個の生成内容と空き位置を検証 |
+| `create_object_from_alias` | 検証済みエイリアスまたは標準効果初期値から1個を生成 |
+| `preview_create_objects_from_aliases` | 最大64個の生成内容、既存物との衝突、生成予定同士の衝突を一括検証 |
+| `create_objects_from_aliases` | 検証済みの最大64個を1回の編集処理で一括生成 |
 | `preview_set_edit_position` | カーソル位置と選択範囲の変更予定を検証 |
 | `set_edit_position` | カーソル位置と選択範囲を設定・解除 |
 | `preview_set_focus_object` | 一覧内オブジェクトへのフォーカス移動を実行せず検証 |
@@ -435,9 +437,11 @@ finally {
 
 `replace_source=true`では、編集コールバック内で元のエイリアスと詳細状態を保存してから元を削除し、フィルター追加済みオブジェクトを同じ位置へ生成します。生成または検証に失敗した場合は、保存した元エイリアスから元オブジェクトを復元して再検証します。復元自体に失敗した場合は`source_restore_failed`となるため、適用前にプロジェクトを保存してください。
 
-## エイリアスからの新規生成
+## エイリアスまたは標準初期値からの新規生成
 
-`preview_create_object_from_alias`は、現在の`state_token`、0-basedの`layer`と`frame`、正の`length`、UTF-8エイリアスを要求します。エイリアスは効果ブロックだけではなく、`[0]`、`layer`、`frame`を含む1個分の完全な形式にしてください。
+`preview_create_object_from_alias`は、現在の`state_token`、0-basedの`layer`と`frame`、`length`に加え、UTF-8の`alias`または標準効果名の`effect`をどちらか1つだけ要求します。
+
+`alias`を使う場合は、効果ブロックだけではなく、`[0]`、`layer`、`frame`を含む1個分の完全な形式にしてください。正の`length`を指定すると、その長さとの完全一致を検証します。
 
 ```json
 {
@@ -452,9 +456,61 @@ finally {
 }
 ```
 
-プレビューでは、生成範囲の衝突、1 MiB以下のエイリアス、`effect.name`、素材パス、効果順を検証し、エイリアスのSHA-256を返します。実行時はコマンドを`create_object_from_alias`へ変更して`apply: true`を追加します。
+標準初期値を調べる場合は、`alias`の代わりに`effect`を指定できます。
 
-生成直後に配置、主効果、素材パス、効果順、全設定項目名と値を再取得します。相違がある場合は生成物を同じ編集コールバック内で削除し、`create_verification_failed`を返します。成功時は応答時点の`created_index`を返しますが、後続操作では必ず状態を再取得してください。
+```json
+{
+  "protocol": "Aul2MIRAI",
+  "protocol_version": 1,
+  "command": "preview_create_object_from_alias",
+  "state_token": "sha256:bf4cb47cb3631a94048d10929f0e2dc2b733025f467596d878ec6f3fcfa716cc",
+  "layer": 0,
+  "frame": 300,
+  "length": 0,
+  "effect": "シーン"
+}
+```
+
+`length: 0`はSDKへ自動長を要求します。プレビュー時の`end_frame`は`null`で、同じレイヤーの開始位置以降に別オブジェクトがある場合は安全のため拒否されます。生成後に実際の開始・終了フレームを読み直し、応答の`frame_length`と`target.end_frame`へ反映します。
+
+プレビューでは生成範囲の衝突を検証します。`alias`ではさらに1 MiB以下のサイズ、`effect.name`、素材パス、効果順を検証し、エイリアスのSHA-256を返します。実行時はコマンドを`create_object_from_alias`へ変更して`apply: true`を追加します。
+
+`alias`生成では、生成直後に配置、主効果、素材パス、効果順、全設定項目名と値を再取得します。相違がある場合は生成物を同じ編集コールバック内で削除し、`create_verification_failed`を返します。`effect`生成では配置と主効果を検証し、生成された標準初期値のオブジェクトを読み取って効果順などの要約を返します。全設定値は生成後の最新`state_token`で`get_object_details`を要求してください。成功時は応答時点の`created_index`を返しますが、後続操作では必ず状態を再取得してください。
+
+`effect: "シーン"`と`length: 0`で生成した後に設定値`シーン`だけを変更しても、参照先の実長へオブジェクト長や`再生位置`は追従しません。全シーン配置では標準初期値生成を長さ取得に使わず、[`SCENE_LEARNING.md`](SCENE_LEARNING.md)の保存済みプロジェクト解析と完全エイリアス生成を使ってください。
+
+## 複数オブジェクトの一括生成
+
+連続した複数シーンなどを配置するときは、1件ずつ生成せず`preview_create_objects_from_aliases`を使用します。最新の`state_token`は要求全体で1つだけ指定し、`creates`へ1～64件を並べます。
+
+```json
+{
+  "protocol": "Aul2MIRAI",
+  "protocol_version": 1,
+  "command": "preview_create_objects_from_aliases",
+  "state_token": "sha256:...",
+  "creates": [
+    {
+      "layer": 0,
+      "frame": 0,
+      "length": 5607,
+      "alias": "[0]\nlayer=0\nframe=0,5606\n..."
+    },
+    {
+      "layer": 0,
+      "frame": 5607,
+      "length": 3204,
+      "alias": "[0]\nlayer=0\nframe=5607,8810\n..."
+    }
+  ]
+}
+```
+
+全件の配置、エイリアス、既存オブジェクトとの衝突、`creates`内の相互衝突を生成前に検査します。一括生成では終了位置を事前確定するため、`length`は正の値が必要で、`length: 0`は使用できません。
+
+プレビュー成功後、同じ内容でコマンドを`create_objects_from_aliases`へ変更し、`apply: true`を追加します。生成前の状態確認は1回、AviUtl2の編集コールバックとUndoも1回です。途中の生成によって選択・フォーカスが移っても、次の生成について`state_token`を再検査しません。
+
+各生成物はその場で配置と詳細内容を照合します。途中の1件でも失敗した場合、その要求で先に生成したオブジェクトも削除して全体を失敗とします。成功時だけ最後の生成物へフォーカスを合わせ、`change.creates`へ全結果を返します。
 
 ## オブジェクトへのフォーカス移動
 

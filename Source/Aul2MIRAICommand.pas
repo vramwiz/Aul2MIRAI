@@ -385,6 +385,19 @@ begin
       ErrorCode + ': ' + ErrorMessage);
     Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
   end;
+  if Preview.AutoLength then
+  begin
+    Preview.Layer := CreatedInfo.Layer;
+    Preview.StartFrame := CreatedInfo.StartFrame;
+    Preview.EndFrame := CreatedInfo.EndFrame;
+    Preview.FrameLength :=
+      CreatedInfo.EndFrame - CreatedInfo.StartFrame + 1;
+  end;
+  if Preview.CreateDefault then
+  begin
+    Preview.Effects := Copy(CreatedInfo.Effects);
+    Preview.MaterialPath := CreatedInfo.MaterialPath;
+  end;
   if not ReadCurrentEditState(EditHandle, AfterEditState,
     ErrorMessage) then
   begin
@@ -412,6 +425,105 @@ begin
     '', 'OK', Command + ' -> one object created');
   Result := BuildObjectCreateResponse(Preview, CreatedInfo, CreatedIndex,
     BeforeIdentity, AfterIdentity);
+end;
+
+function HandleObjectCreateBatchRequest(const RequestText,
+  Command: string): string;
+var
+  AfterEditState : TAul2MIRAIEditState;
+  AfterIdentity  : TAul2MIRAISnapshotIdentity;
+  AfterSnapshot  : TAul2MIRAISceneSnapshot;
+  BeforeIdentity : TAul2MIRAISnapshotIdentity;
+  CreatedIndices : TArray<Integer>;
+  CreatedInfos   : TArray<TAul2MIRAIObjectInfo>;
+  CreateRequests : TArray<TAul2MIRAIObjectCreateRequest>;
+  EditState      : TAul2MIRAIEditState;
+  ErrorCode      : string;
+  ErrorMessage   : string;
+  I              : Integer;
+  Previews       : TArray<TAul2MIRAIObjectCreatePreview>;
+  RequireApply   : Boolean;
+  Snapshot       : TAul2MIRAISceneSnapshot;
+  StateToken     : string;
+begin
+  RequireApply := SameText(Command,
+    AUL2MIRAI_COMMAND_CREATE_OBJECTS_FROM_ALIASES);
+  if not ParseObjectCreateBatchRequest(RequestText, RequireApply,
+    StateToken, CreateRequests, ErrorCode, ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External create batch rejected', '',
+      'WARN', ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+  if not ReadCurrentEditState(EditHandle, EditState, ErrorMessage) then
+    Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+  if not ReadCurrentSceneObjects(EditHandle, Snapshot, ErrorMessage) then
+    Exit(BuildProtocolError(Command, 'read_failed', ErrorMessage));
+  BeforeIdentity := CreateSnapshotIdentity(EditState, Snapshot);
+  if not SameText(StateToken, BeforeIdentity.StateToken) then
+  begin
+    QueueMIRAIViewUpdate(
+      'External create batch rejected - state changed', '',
+      'WARN', Command + ': state_changed');
+    Exit(BuildStateChangedError(Command, StateToken, BeforeIdentity));
+  end;
+  if not CreateObjectCreatePreviews(Snapshot, CreateRequests, Previews,
+    ErrorCode, ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External create batch rejected', '',
+      'WARN', ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+  if not RequireApply then
+  begin
+    QueueMIRAIViewUpdate(
+      Format('Create batch preview - %d objects', [Length(Previews)]),
+      '', 'OK', Format('%s -> %d objects',
+        [Command, Length(Previews)]));
+    Exit(BuildObjectCreateBatchPreviewResponse(Previews,
+      BeforeIdentity));
+  end;
+
+  if not ApplyObjectCreates(EditHandle, Previews, CreatedInfos,
+    ErrorCode, ErrorMessage) then
+  begin
+    QueueMIRAIViewUpdate('External create batch failed', '', 'ERROR',
+      ErrorCode + ': ' + ErrorMessage);
+    Exit(BuildProtocolError(Command, ErrorCode, ErrorMessage));
+  end;
+  for I := 0 to High(Previews) do
+    if Previews[I].CreateDefault then
+    begin
+      Previews[I].Effects := Copy(CreatedInfos[I].Effects);
+      Previews[I].MaterialPath := CreatedInfos[I].MaterialPath;
+    end;
+  if not ReadCurrentEditState(EditHandle, AfterEditState,
+    ErrorMessage) then
+  begin
+    ErrorMessage := 'The objects were created, but the updated state ' +
+      'could not be read: ' + ErrorMessage;
+    Exit(BuildProtocolError(Command, 'post_write_read_failed',
+      ErrorMessage));
+  end;
+  if not ReadCurrentSceneObjects(EditHandle, AfterSnapshot,
+    ErrorMessage) then
+  begin
+    ErrorMessage := 'The objects were created, but the updated objects ' +
+      'could not be read: ' + ErrorMessage;
+    Exit(BuildProtocolError(Command, 'post_write_read_failed',
+      ErrorMessage));
+  end;
+  if not ResolveCreatedCreateObjectIndices(AfterSnapshot, Previews,
+    CreatedIndices, ErrorMessage) then
+    Exit(BuildProtocolError(Command,
+      'post_write_verification_failed', ErrorMessage));
+  AfterIdentity := CreateSnapshotIdentity(AfterEditState, AfterSnapshot);
+  QueueMIRAIViewUpdate(
+    Format('Create batch applied - %d objects', [Length(Previews)]),
+    '', 'OK', Format('%s -> %d objects created',
+      [Command, Length(Previews)]));
+  Result := BuildObjectCreateBatchResponse(Previews, CreatedInfos,
+    CreatedIndices, BeforeIdentity, AfterIdentity);
 end;
 
 function HandleObjectMoveRequest(const RequestText, Command: string): string;
@@ -702,6 +814,12 @@ begin
     if SameText(Command, AUL2MIRAI_COMMAND_PREVIEW_DUPLICATE_OBJECTS) or
        SameText(Command, AUL2MIRAI_COMMAND_DUPLICATE_OBJECTS) then
       Exit(HandleObjectDuplicateRequest(RequestText, Command));
+
+    if SameText(Command,
+         AUL2MIRAI_COMMAND_PREVIEW_CREATE_OBJECTS_FROM_ALIASES) or
+       SameText(Command,
+         AUL2MIRAI_COMMAND_CREATE_OBJECTS_FROM_ALIASES) then
+      Exit(HandleObjectCreateBatchRequest(RequestText, Command));
 
     if SameText(Command,
          AUL2MIRAI_COMMAND_PREVIEW_CREATE_OBJECT_FROM_ALIAS) or
