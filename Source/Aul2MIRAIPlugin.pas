@@ -40,6 +40,22 @@ begin
         if HandleMIRAIViewCommand(WParam) then
           Exit(0);
       end;
+    WM_CTLCOLORSTATIC, WM_CTLCOLORBTN:
+      begin
+        Result := LRESULT(HandleMIRAIControlColor(HDC(WParam), HWND(LParam)));
+        if Result <> 0 then
+          Exit;
+      end;
+    WM_DRAWITEM:
+      begin
+        if HandleMIRAIDrawItem(PDrawItemStruct(LParam)) then
+          Exit(1);
+      end;
+    WM_ERASEBKGND:
+      begin
+        if PaintMIRAIViewBackground(HDC(WParam)) then
+          Exit(1);
+      end;
     WM_SIZE:
       begin
         ResizeMIRAIView(LOWORD(LParam), HIWORD(LParam));
@@ -64,7 +80,7 @@ begin
   WindowClass.lpfnWndProc := @MIRAIWndProc;
   WindowClass.hInstance := HInstance;
   WindowClass.hCursor := LoadCursor(0, IDC_ARROW);
-  WindowClass.hbrBackground := HBRUSH(COLOR_WINDOW + 1);
+  WindowClass.hbrBackground := 0;
   WindowClass.lpszClassName := WINDOW_CLASS_NAME;
 
   if RegisterClassEx(WindowClass) <> 0 then

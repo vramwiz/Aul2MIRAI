@@ -14,6 +14,10 @@ procedure CreateMIRAIView(ParentWindow: HWND);
 procedure DestroyMIRAIView;
 procedure ResizeMIRAIView(Width, Height: Integer);
 function HandleMIRAIViewCommand(WParam: WPARAM): Boolean;
+function HandleMIRAIControlColor(DeviceContext: HDC;
+  ControlHandle: HWND): HBRUSH;
+function HandleMIRAIDrawItem(DrawItem: PDrawItemStruct): Boolean;
+function PaintMIRAIViewBackground(DeviceContext: HDC): Boolean;
 procedure QueueMIRAIViewUpdate(const StatusText, ObjectText, LogLevel,
   LogMessage: string);
 procedure ApplyMIRAIViewUpdates;
@@ -24,7 +28,8 @@ uses
   Winapi.ShellAPI,
   System.Math,
   System.SyncObjs,
-  System.SysUtils;
+  System.SysUtils,
+  System.Types;
 
 const
   CONTROL_ID_HELP = 1001;
@@ -33,6 +38,13 @@ const
   BUTTON_HEIGHT   = 28;
   BUTTON_WIDTH    = 80;
   HELP_URL        = 'https://github.com/vramwiz/Aul2MIRAI';
+  COLOR_BACKGROUND = $00202020;
+  COLOR_CONTROL    = $00303030;
+  COLOR_BUTTON     = $00383838;
+  COLOR_BUTTON_DOWN = $00282828;
+  COLOR_BORDER     = $00585858;
+  COLOR_TEXT       = $00F0F0F0;
+  COLOR_TEXT_DISABLED = $00808080;
 
 var
   ParentHandle     : HWND;
@@ -44,6 +56,16 @@ var
   PendingStatus    : string;
   PendingHasLog    : Boolean;
   PendingHasStatus : Boolean;
+  BackgroundBrush  : HBRUSH;
+  ControlBrush     : HBRUSH;
+
+procedure CreateDarkBrushes;
+begin
+  if BackgroundBrush = 0 then
+    BackgroundBrush := CreateSolidBrush(COLOR_BACKGROUND);
+  if ControlBrush = 0 then
+    ControlBrush := CreateSolidBrush(COLOR_CONTROL);
+end;
 
 procedure ApplyControlFont(Control: HWND; Font: HGDIOBJ);
 begin
@@ -83,6 +105,7 @@ begin
   DestroyMIRAIView;
   ParentHandle := ParentWindow;
   PendingLock := TCriticalSection.Create;
+  CreateDarkBrushes;
 
   LogHandle := CreateWindowEx(0, 'STATIC',
     'AIからの操作を待っています。',
@@ -92,7 +115,7 @@ begin
     WS_CHILD or WS_VISIBLE or SS_LEFT or SS_CENTERIMAGE,
     0, 0, 0, 0, ParentHandle, 0, HInstance, nil);
   HelpHandle := CreateWindowEx(0, 'BUTTON', 'ヘルプ',
-    WS_CHILD or WS_VISIBLE or WS_TABSTOP or BS_PUSHBUTTON,
+    WS_CHILD or WS_VISIBLE or WS_TABSTOP or BS_OWNERDRAW,
     0, 0, 0, 0, ParentHandle, HMENU(CONTROL_ID_HELP), HInstance, nil);
   if (LogHandle = 0) or (StatusHandle = 0) or (HelpHandle = 0) then
     RaiseLastOSError;
@@ -124,6 +147,12 @@ begin
   PendingStatus := '';
   PendingHasLog := False;
   PendingHasStatus := False;
+  if ControlBrush <> 0 then
+    DeleteObject(ControlBrush);
+  if BackgroundBrush <> 0 then
+    DeleteObject(BackgroundBrush);
+  ControlBrush := 0;
+  BackgroundBrush := 0;
 end;
 
 procedure ResizeMIRAIView(Width, Height: Integer);
@@ -150,6 +179,77 @@ begin
     (HIWORD(WParam) = BN_CLICKED);
   if Result then
     OpenHelpPage;
+end;
+
+function HandleMIRAIControlColor(DeviceContext: HDC;
+  ControlHandle: HWND): HBRUSH;
+begin
+  Result := 0;
+  if (ControlHandle <> LogHandle) and (ControlHandle <> StatusHandle) then
+    Exit;
+
+  CreateDarkBrushes;
+  SetTextColor(DeviceContext, COLOR_TEXT);
+  SetBkColor(DeviceContext, COLOR_CONTROL);
+  SetBkMode(DeviceContext, OPAQUE);
+  Result := ControlBrush;
+end;
+
+function HandleMIRAIDrawItem(DrawItem: PDrawItemStruct): Boolean;
+var
+  BorderBrush: HBRUSH;
+  ButtonBrush: HBRUSH;
+  ButtonText : array[0..255] of Char;
+  TextColor  : COLORREF;
+  TextRect   : TRect;
+begin
+  Result := (DrawItem <> nil) and (DrawItem^.CtlID = CONTROL_ID_HELP);
+  if not Result then
+    Exit;
+
+  if (DrawItem^.itemState and ODS_SELECTED) <> 0 then
+    ButtonBrush := CreateSolidBrush(COLOR_BUTTON_DOWN)
+  else
+    ButtonBrush := CreateSolidBrush(COLOR_BUTTON);
+  BorderBrush := CreateSolidBrush(COLOR_BORDER);
+  try
+    FillRect(DrawItem^.hDC, DrawItem^.rcItem, BorderBrush);
+    TextRect := DrawItem^.rcItem;
+    InflateRect(TextRect, -1, -1);
+    FillRect(DrawItem^.hDC, TextRect, ButtonBrush);
+
+    if (DrawItem^.itemState and ODS_DISABLED) <> 0 then
+      TextColor := COLOR_TEXT_DISABLED
+    else
+      TextColor := COLOR_TEXT;
+    SetTextColor(DrawItem^.hDC, TextColor);
+    SetBkMode(DrawItem^.hDC, TRANSPARENT);
+    GetWindowText(DrawItem^.hwndItem, ButtonText, Length(ButtonText));
+    DrawText(DrawItem^.hDC, ButtonText, -1, TextRect,
+      DT_CENTER or DT_VCENTER or DT_SINGLELINE);
+
+    if (DrawItem^.itemState and ODS_FOCUS) <> 0 then
+    begin
+      InflateRect(TextRect, -3, -3);
+      DrawFocusRect(DrawItem^.hDC, TextRect);
+    end;
+  finally
+    DeleteObject(BorderBrush);
+    DeleteObject(ButtonBrush);
+  end;
+end;
+
+function PaintMIRAIViewBackground(DeviceContext: HDC): Boolean;
+var
+  ClientRect: TRect;
+begin
+  Result := (ParentHandle <> 0) and (DeviceContext <> 0);
+  if not Result then
+    Exit;
+
+  CreateDarkBrushes;
+  GetClientRect(ParentHandle, ClientRect);
+  FillRect(DeviceContext, ClientRect, BackgroundBrush);
 end;
 
 procedure QueueMIRAIViewUpdate(const StatusText, ObjectText, LogLevel,
