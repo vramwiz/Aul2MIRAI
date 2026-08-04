@@ -37,6 +37,11 @@ $packageFiles = @(
     Source = Join-Path $projectRoot 'EFFECT_LEARNING.md'
     Destination = 'EFFECT_LEARNING.md'
     Description = 'Filter effect learning catalog'
+  },
+  @{
+    Source = Join-Path $projectRoot 'VOICEVOX_PROJECT_LEARNING.md'
+    Destination = 'VOICEVOX_PROJECT_LEARNING.md'
+    Description = 'VOICEVOX project learning guide'
   }
 )
 
