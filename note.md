@@ -8,6 +8,7 @@
 - フィルターの設定値と実際の映像変化の対応は[`EFFECT_LEARNING.md`](EFFECT_LEARNING.md)に置く。
 - AviUtl2付属`lua.txt`の要点、スクリプト制御の安全規則、実機で確認したLuaの挙動は[`LUA_SCRIPTING.md`](LUA_SCRIPTING.md)に置く。
 - 全シーンの検出、実長算出、Rootへの一括配置手順は[`SCENE_LEARNING.md`](SCENE_LEARNING.md)に置く。
+- VOICEVOX用台本の話者・感情変換、`.vvproj`生成、起動引数、責任範囲、実機確認結果は[`VOICEVOX_PROJECT_LEARNING.md`](VOICEVOX_PROJECT_LEARNING.md)に置く。
 - Named Pipeの通信仕様、内部処理、接続情報、制限は [`PIPE_INTERFACE.md`](PIPE_INTERFACE.md) に置く。
 - AI向けの操作手順は`AI_USAGE.md`、生成知識は`ALIAS_CATALOG.md`へ記録し、本ファイルへ個別エイリアスを追加しない。
 - 完了済みの実装と実機確認結果は[`HISTORY.md`](HISTORY.md)に記録し、本ファイルには現在の判断に必要な要約だけを残す。
