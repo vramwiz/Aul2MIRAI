@@ -42,6 +42,16 @@ $packageFiles = @(
     Source = Join-Path $projectRoot 'VOICEVOX_PROJECT_LEARNING.md'
     Destination = 'VOICEVOX_PROJECT_LEARNING.md'
     Description = 'VOICEVOX project learning guide'
+  },
+  @{
+    Source = Join-Path $projectRoot 'SCENE_LEARNING.md'
+    Destination = 'SCENE_LEARNING.md'
+    Description = 'Scene placement learning guide'
+  },
+  @{
+    Source = Join-Path $projectRoot 'LUA_SCRIPTING.md'
+    Destination = 'LUA_SCRIPTING.md'
+    Description = 'Lua scripting safety guide'
   }
 )
 

@@ -23,11 +23,14 @@ const
   DISPLAY_NAME      = 'AI MIRAI';
 
 var
-  ClientWindow: HWND;
+  ClientWindow         : HWND;
+  WindowBackgroundBrush: HBRUSH;
   WindowClassRegistered: Boolean;
 
 function MIRAIWndProc(WindowHandle: HWND; MessageId: UINT; WParam: WPARAM;
   LParam: LPARAM): LRESULT; stdcall;
+var
+  ControlBrush: HBRUSH;
 begin
   case MessageId of
     WM_PIPE_NOTIFY:
@@ -40,20 +43,14 @@ begin
         if HandleMIRAIViewCommand(WParam) then
           Exit(0);
       end;
-    WM_CTLCOLORSTATIC, WM_CTLCOLORBTN:
+    WM_CTLCOLORSTATIC:
       begin
-        Result := LRESULT(HandleMIRAIControlColor(HDC(WParam), HWND(LParam)));
-        if Result <> 0 then
-          Exit;
+        if HandleMIRAIViewControlColor(HDC(WParam), HWND(LParam), ControlBrush) then
+          Exit(LRESULT(ControlBrush));
       end;
     WM_DRAWITEM:
       begin
-        if HandleMIRAIDrawItem(PDrawItemStruct(LParam)) then
-          Exit(1);
-      end;
-    WM_ERASEBKGND:
-      begin
-        if PaintMIRAIViewBackground(HDC(WParam)) then
+        if HandleMIRAIViewDrawItem(LParam) then
           Exit(1);
       end;
     WM_SIZE:
@@ -75,12 +72,19 @@ procedure RegisterMIRAIWindowClass;
 var
   WindowClass: WNDCLASSEX;
 begin
+  if WindowBackgroundBrush = 0 then
+  begin
+    WindowBackgroundBrush := CreateSolidBrush(MIRAI_BACKGROUND_COLOR);
+    if WindowBackgroundBrush = 0 then
+      RaiseLastOSError;
+  end;
+
   FillChar(WindowClass, SizeOf(WindowClass), 0);
   WindowClass.cbSize := SizeOf(WindowClass);
   WindowClass.lpfnWndProc := @MIRAIWndProc;
   WindowClass.hInstance := HInstance;
   WindowClass.hCursor := LoadCursor(0, IDC_ARROW);
-  WindowClass.hbrBackground := 0;
+  WindowClass.hbrBackground := WindowBackgroundBrush;
   WindowClass.lpszClassName := WINDOW_CLASS_NAME;
 
   if RegisterClassEx(WindowClass) <> 0 then
@@ -143,6 +147,12 @@ begin
   begin
     UnregisterClass(WINDOW_CLASS_NAME, HInstance);
     WindowClassRegistered := False;
+  end;
+
+  if WindowBackgroundBrush <> 0 then
+  begin
+    DeleteObject(WindowBackgroundBrush);
+    WindowBackgroundBrush := 0;
   end;
 
 end;
