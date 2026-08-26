@@ -12,6 +12,8 @@ uses
   PipeServerTThread in 'Source\Lib\Pipe\PipeServerTThread.pas',
   Aul2MIRAIEditStateTypes in 'Source\Aul2MIRAIEditStateTypes.pas',
   Aul2MIRAIEditStateReader in 'Source\Aul2MIRAIEditStateReader.pas',
+  Aul2MIRAIExtensionProvider in 'Source\Aul2MIRAIExtensionProvider.pas',
+  Aul2MIRAIExtensionCommand in 'Source\Aul2MIRAIExtensionCommand.pas',
   Aul2MIRAIFrameCapture in 'Source\Aul2MIRAIFrameCapture.pas',
   Aul2MIRAIEditPosition in 'Source\Aul2MIRAIEditPosition.pas',
   Aul2MIRAIEditPositionWriter in 'Source\Aul2MIRAIEditPositionWriter.pas',

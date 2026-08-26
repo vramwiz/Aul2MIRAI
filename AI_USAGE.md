@@ -43,6 +43,9 @@
 | `set_edit_position` | カーソル位置と選択範囲を設定・解除 |
 | `preview_set_focus_object` | 一覧内オブジェクトへのフォーカス移動を実行せず検証 |
 | `set_focus_object` | 一覧内オブジェクトへフォーカスを移動 |
+| `query_object_extension` | 選択オブジェクトが提供する拡張スキーマを取得 |
+| `preview_object_extension_change` | 拡張機能による変更を実行せず検証 |
+| `apply_object_extension_change` | 拡張機能で検証済みの変更を1回のUndo単位で適用 |
 
 ## 接続と取得
 
@@ -560,6 +563,48 @@ finally {
 ## シーン操作について
 
 現在の公開SDKでは現在シーンの情報だけを取得できます。シーン一覧、シーン切り替え、シーン追加は利用できません。画面操作の模倣や非公開APIで補完せず、未対応としてユーザーへ伝えてください。
+
+## MMDポーズ拡張
+
+MMDの「モデル表示」または「ポーズ」エフェクトを選択し、最新の`state_token`、対象index、エフェクトindexを指定します。ボーン名、親子関係、初期位置、変形階層、IK構造を取得する要求は次の形式です。
+
+```json
+{
+  "protocol": "Aul2MIRAI",
+  "protocol_version": 1,
+  "command": "query_object_extension",
+  "state_token": "sha256:...",
+  "target_index": 1,
+  "effect_index": 0,
+  "extension": "mmd.pose",
+  "operation": "get_model_schema"
+}
+```
+
+ポーズ変更は`mode`を`merge`または`replace`とし、各ボーンへ移動量と回転を指定します。回転は`rotation`のQuaternion `[x,y,z,w]`、または`rotation_euler_degrees`の度数 `[x,y,z]`を使用できます。
+
+```json
+{
+  "protocol": "Aul2MIRAI",
+  "protocol_version": 1,
+  "command": "preview_object_extension_change",
+  "state_token": "sha256:...",
+  "target_index": 1,
+  "effect_index": 0,
+  "extension": "mmd.pose",
+  "operation": "set_pose",
+  "payload": {
+    "mode": "merge",
+    "bones": [
+      {"name": "左腕", "rotation_euler_degrees": [0, 0, 30]}
+    ]
+  }
+}
+```
+
+成功したプレビューは、MMDが正規化した`pose_data`と、対象ボーンのindex、最終ワールド位置を`resolved_bones`に返します。存在しないボーン、重複ボーン、不正なQuaternionやベクトル、解釈不能な現在姿勢はMMD側で拒否されます。適用時は同じ内容でコマンドを`apply_object_extension_change`へ変更し、`apply: true`を追加します。「モデル表示」では`標準姿勢データ`、「ポーズ」では`姿勢データ`へ書き込み、変更全体を1回のUndoにします。
+
+現時点ではAviUtl2設定値APIの上限に合わせ、現在姿勢と生成後の`pose_data`を各16,384文字以内に限定します。また、ポーズ適用完了と次のフレーム画像取得の描画世代を同期する仕組みは未実装です。画像確認では不完全な1枚を採用せず、必要に応じて再取得してください。
 
 ## エラー形式
 

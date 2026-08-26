@@ -8,12 +8,23 @@
 - フィルターの設定値と実際の映像変化の対応は[`EFFECT_LEARNING.md`](EFFECT_LEARNING.md)に置く。
 - AviUtl2付属`lua.txt`の要点、スクリプト制御の安全規則、実機で確認したLuaの挙動は[`LUA_SCRIPTING.md`](LUA_SCRIPTING.md)に置く。
 - 全シーンの検出、実長算出、Rootへの一括配置手順は[`SCENE_LEARNING.md`](SCENE_LEARNING.md)に置く。
+- MMDモデルの骨格取得、ポーズ設計、軸方向、実機評価、既知の制限は[`MMD_POSE_LEARNING.md`](MMD_POSE_LEARNING.md)に置く。
 - VOICEVOX用台本の話者・感情変換、`.vvproj`生成、起動引数、責任範囲、実機確認結果は[`VOICEVOX_PROJECT_LEARNING.md`](VOICEVOX_PROJECT_LEARNING.md)に置く。
 - AviUtl2カタログの登録用JSON、GitHub Release、インストール、アンインストール、更新手順は[`CATALOG_REGISTRATION.md`](CATALOG_REGISTRATION.md)に置く。
 - Named Pipeの通信仕様、内部処理、接続情報、制限は [`PIPE_INTERFACE.md`](PIPE_INTERFACE.md) に置く。
 - AI向けの操作手順は`AI_USAGE.md`、生成知識は`ALIAS_CATALOG.md`へ記録し、本ファイルへ個別エイリアスを追加しない。
 - 完了済みの実装と実機確認結果は[`HISTORY.md`](HISTORY.md)に記録し、本ファイルには現在の判断に必要な要約だけを残す。
 - 実装途中では文書を逐次更新せず、ビルド、AviUtl2上の表示、実機確認まで完了してから現状を反映する。
+
+## 2026-08-26 MMDオブジェクト拡張初版
+
+ポーズ作成で確認した軸方向、操作手順、実機評価、今後の学習課題は[`MMD_POSE_LEARNING.md`](MMD_POSE_LEARNING.md)を正本とする。
+
+- AIとの外部インターフェースはNamed Pipe `Aul2MIRAI.v1`へ統一し、`query_object_extension`、`preview_object_extension_change`、`apply_object_extension_change`を追加した。初版は拡張名`mmd.pose`を扱う。
+- 現在プロセスの読み込み済みモジュールからMMDのバージョン付きC ABIを探索する。AI MIRAIは選択対象、`state_token`、設定値書込み、適用後照合、Undoを担当し、MMDへモデル固有の解釈を委譲する。
+- `モデル表示.標準姿勢データ`と`ポーズ.姿勢データ`を対象に、MMDが返した正規化済み姿勢だけを書き込む。存在しないボーンなどの意味エラーはプレビュー時点で拒否する。
+- Model / Pose / Aul2MIRAIのWin64 Releaseビルドは警告・エラーなし。実機用配置後、Named Pipeから実モデル224ボーン・IK 4本の取得、奥行き回転を含む3ボーンの非破壊プレビュー、未知ボーン拒否、一時的な頭ボーン変更と適用後照合に成功した。試験後は元姿勢へ戻し、`state_token`が試験前と一致することを確認した。
+- 設定値APIの16,384文字上限と、ポーズ変更後の描画世代同期は次段階の課題とする。
 
 ## 作業再開チェックポイント（2026-07-24）
 

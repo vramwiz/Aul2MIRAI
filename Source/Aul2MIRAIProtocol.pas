@@ -42,6 +42,10 @@ const
   AUL2MIRAI_COMMAND_PREVIEW_FOCUS_OBJECT = 'preview_set_focus_object';
   AUL2MIRAI_COMMAND_SET_FOCUS_OBJECT = 'set_focus_object';
   AUL2MIRAI_COMMAND_CURRENT_FRAME_IMAGE = 'get_current_frame_image';
+  AUL2MIRAI_COMMAND_QUERY_EXTENSION = 'query_object_extension';
+  AUL2MIRAI_COMMAND_PREVIEW_EXTENSION =
+    'preview_object_extension_change';
+  AUL2MIRAI_COMMAND_APPLY_EXTENSION = 'apply_object_extension_change';
 
 function BuildProtocolRequest(const Command: string): string;
 function ParseProtocolRequest(const RequestText: string;

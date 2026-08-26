@@ -15,6 +15,7 @@ uses
   Aul2MIRAIEditPositionWriter,
   Aul2MIRAIEditStateReader,
   Aul2MIRAIEditStateTypes,
+  Aul2MIRAIExtensionCommand,
   Aul2MIRAIFrameCapture,
   Aul2MIRAIObjectFormat,
   Aul2MIRAIObjectCreate,
@@ -802,6 +803,11 @@ begin
            FrameImage.FileSize, FrameImage.ElapsedMs]));
       Exit(BuildFrameImageResponse(FrameImage, Identity));
     end;
+
+    if SameText(Command, AUL2MIRAI_COMMAND_QUERY_EXTENSION) or
+       SameText(Command, AUL2MIRAI_COMMAND_PREVIEW_EXTENSION) or
+       SameText(Command, AUL2MIRAI_COMMAND_APPLY_EXTENSION) then
+      Exit(HandleExtensionRequest(RequestText, Command));
 
     if SameText(Command, AUL2MIRAI_COMMAND_PREVIEW_PARAMETERS) or
        SameText(Command, AUL2MIRAI_COMMAND_SET_PARAMETERS) then

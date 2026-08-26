@@ -92,6 +92,9 @@ AviUtl2 SDKへアクセスする処理はPipeのワーカースレッドで直�
 | `set_edit_position` | カーソル位置と選択範囲を設定または解除する。 |
 | `preview_set_focus_object` | 一覧内オブジェクトへのフォーカス移動予定を検証する。 |
 | `set_focus_object` | 一覧内オブジェクトへ通常選択のフォーカスを移動する。 |
+| `query_object_extension` | 選択オブジェクト内の拡張プロバイダーへ読み取り要求を渡す。 |
+| `preview_object_extension_change` | 拡張プロバイダーによる変更内容を検証する。 |
+| `apply_object_extension_change` | 拡張プロバイダーで正規化した変更を1回のUndo単位で適用する。 |
 
 要求例:
 
@@ -238,6 +241,14 @@ AviUtl2 v2.10の公開SDKには、既存オブジェクトの終了フレーム�
 ## PowerShellからの接続
 
 配布用の接続コードとCodex向けの注意事項は[`AI_USAGE.md`](AI_USAGE.md)に置く。この文書には通信方式とプラグイン内部の処理だけを記載し、同じPowerShellコードを重複させない。
+
+## オブジェクト拡張プロバイダー
+
+外部AIとの入口は従来どおりNamed Pipe `Aul2MIRAI.v1`だけに統一する。MMDなどの対象プラグインが固有データを持つ場合、AI MIRAIは現在プロセスの読み込み済みモジュールから、バージョン付きC ABIの`MmdAiProviderGetVersion`と`MmdAiProviderInvoke`を探索する。別Pipeやプラグイン固有クライアントは追加しない。
+
+プロバイダー呼び出しはUTF-8 JSONを使用し、呼び出し側が応答バッファを確保する2段階方式とする。AI MIRAIは選択対象、状態指紋、エフェクト設定値の読書き、Undo、適用後検証を担当する。MMD側はモデル読込み、ボーン・IKスキーマ、ポーズの意味検証、正規化、最終ボーン位置計算を担当する。この分離により、一般的なオブジェクト操作とMMD固有の骨格解釈を同じ外部プロトコルで扱う。
+
+初版の拡張名は`mmd.pose`、問合せ操作は`get_model_schema`、変更操作は`set_pose`である。詳細な要求例と制限は[`AI_USAGE.md`](AI_USAGE.md)を参照する。
 
 ## プロジェクト別の学習内容の記録
 
