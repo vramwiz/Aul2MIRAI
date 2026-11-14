@@ -68,7 +68,7 @@
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PostBuildEvent><![CDATA[copy /Y "C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).dll" "C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).aux2"]]></PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
-        <Debugger_HostApplication>D:\aviutl2beta50\aviutl2.exe</Debugger_HostApplication>
+        <Debugger_HostApplication>D:\aviutl2_v2.1.17\aviutl2.exe</Debugger_HostApplication>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
@@ -83,12 +83,15 @@
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PostBuildEvent><![CDATA[copy /Y "C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).dll" "C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).aux2"&&if exist "C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).dll" del /Q "C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).dll"&&if exist "C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).rsm" del /Q "C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\$(PROJECTNAME).rsm"]]></PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
-        <Debugger_HostApplication>D:\aviutl2_v2.1.3a\aviutl2.exe</Debugger_HostApplication>
+        <Debugger_HostApplication>D:\aviutl2_v2.1.17\aviutl2.exe</Debugger_HostApplication>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
+        <RcCompile Include="Aul2MIRAIKnowledge.rc">
+            <Form>Aul2MIRAIKnowledge.res</Form>
+        </RcCompile>
         <DCCReference Include="Source\Lib\AviUtl2Plugin\AviUtl2PluginTypes.pas"/>
         <DCCReference Include="Source\Lib\AviUtl2Plugin\AviUtl2PluginCore.pas"/>
         <DCCReference Include="Source\Lib\Pipe\PipeServerTThread.pas"/>
@@ -113,6 +116,8 @@
         <DCCReference Include="Source\Aul2MIRAIObjectMove.pas"/>
         <DCCReference Include="Source\Aul2MIRAIObjectMover.pas"/>
         <DCCReference Include="Source\Aul2MIRAIObjectCreate.pas"/>
+        <DCCReference Include="Source\Aul2MIRAIObjectEdit.pas"/>
+        <DCCReference Include="Source\Aul2MIRAIObjectEditor.pas"/>
         <DCCReference Include="Source\Aul2MIRAIObjectDuplicate.pas"/>
         <DCCReference Include="Source\Aul2MIRAIObjectEquivalence.pas"/>
         <DCCReference Include="Source\Aul2MIRAIObjectDuplicator.pas"/>
@@ -122,6 +127,9 @@
         <DCCReference Include="Source\Aul2MIRAICommand.pas"/>
         <DCCReference Include="Source\Aul2MIRAIPipeServer.pas"/>
         <DCCReference Include="Source\Aul2MIRAILog.pas"/>
+        <DCCReference Include="Source\Aul2MIRAIKnowledge.pas"/>
+        <DCCReference Include="Source\Aul2MIRAICodexClient.pas"/>
+        <DCCReference Include="Source\Aul2MIRAICodexBridge.pas"/>
         <DCCReference Include="Source\Aul2MIRAIView.pas"/>
         <DCCReference Include="Source\Aul2MIRAIPlugin.pas"/>
         <BuildConfiguration Include="Base">

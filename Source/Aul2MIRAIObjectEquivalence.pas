@@ -1,4 +1,4 @@
-unit Aul2MIRAIObjectEquivalence;
+﻿unit Aul2MIRAIObjectEquivalence;
 
 // Compares an alias-created object with its source while ignoring only the
 // placement, selection/focus state, snapshot index, and normalized alias hash.

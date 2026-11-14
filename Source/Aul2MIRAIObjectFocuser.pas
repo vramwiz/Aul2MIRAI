@@ -1,4 +1,4 @@
-unit Aul2MIRAIObjectFocuser;
+﻿unit Aul2MIRAIObjectFocuser;
 
 // Resolves and revalidates an object inside one AviUtl2 edit callback, then
 // changes the normal focus. Focus changes are UI state and create no Undo item.

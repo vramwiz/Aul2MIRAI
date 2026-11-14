@@ -1,4 +1,4 @@
-unit Aul2MIRAIExtensionProvider;
+﻿unit Aul2MIRAIExtensionProvider;
 
 // 同一AviUtl2プロセスに読み込まれた拡張プロバイダーをC ABIで呼び出す。
 

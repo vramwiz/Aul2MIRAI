@@ -12,5 +12,6 @@ __history/
 *.tds 
 *.dsk 
 Build/
+Aul2MIRAIKnowledge.res
 !Setup/*.bat 
 .DS_Store 

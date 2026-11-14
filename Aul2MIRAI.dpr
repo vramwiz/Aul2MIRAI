@@ -3,6 +3,7 @@
 // AviUtl2 extension plugin: AI MIRAI
 
 {$ALIGN 8}
+{$R 'Aul2MIRAIKnowledge.res' 'Aul2MIRAIKnowledge.rc'}
 
 uses
   Winapi.Windows,
@@ -31,6 +32,8 @@ uses
   Aul2MIRAIObjectMove in 'Source\Aul2MIRAIObjectMove.pas',
   Aul2MIRAIObjectMover in 'Source\Aul2MIRAIObjectMover.pas',
   Aul2MIRAIObjectCreate in 'Source\Aul2MIRAIObjectCreate.pas',
+  Aul2MIRAIObjectEdit in 'Source\Aul2MIRAIObjectEdit.pas',
+  Aul2MIRAIObjectEditor in 'Source\Aul2MIRAIObjectEditor.pas',
   Aul2MIRAIObjectDuplicate in 'Source\Aul2MIRAIObjectDuplicate.pas',
   Aul2MIRAIObjectEquivalence in 'Source\Aul2MIRAIObjectEquivalence.pas',
   Aul2MIRAIObjectDuplicator in 'Source\Aul2MIRAIObjectDuplicator.pas',
@@ -40,6 +43,9 @@ uses
   Aul2MIRAICommand in 'Source\Aul2MIRAICommand.pas',
   Aul2MIRAIPipeServer in 'Source\Aul2MIRAIPipeServer.pas',
   Aul2MIRAILog in 'Source\Aul2MIRAILog.pas',
+  Aul2MIRAIKnowledge in 'Source\Aul2MIRAIKnowledge.pas',
+  Aul2MIRAICodexClient in 'Source\Aul2MIRAICodexClient.pas',
+  Aul2MIRAICodexBridge in 'Source\Aul2MIRAICodexBridge.pas',
   Aul2MIRAIView in 'Source\Aul2MIRAIView.pas',
   Aul2MIRAIPlugin in 'Source\Aul2MIRAIPlugin.pas';
 

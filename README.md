@@ -1,6 +1,6 @@
 # Aul2MIRAI
 
-AviUtl2用の最小構成の拡張プラグインです。
+AviUtl2の状態取得・編集と、Codexへの命令送信を行う拡張プラグインです。
 
 ## インストール
 
@@ -16,17 +16,29 @@ C:\ProgramData\aviutl2\Plugin\
 C:\ProgramData\aviutl2\Plugin\Aul2MIRAI\
 ```
 
-## 対応AI環境
+## AI MIRAI画面から使う
 
-推奨環境はCodexです。AviUtl2を操作する前に、Codexへ[`PIPE_INTERFACE.md`](PIPE_INTERFACE.md)と[`AI_USAGE.md`](AI_USAGE.md)を読み込ませてください。オブジェクトやフィルターを生成する場合は[`ALIAS_CATALOG.md`](ALIAS_CATALOG.md)、設定値と実際の映像変化を扱う場合は[`EFFECT_LEARNING.md`](EFFECT_LEARNING.md)も読み込ませてください。Codexは通信方式、コマンド、安全な操作手順をそのセッション内で理解し、PowerShellからAI MIRAIへ接続します。
+Codexを導入してログインした環境で、AviUtl2の「AI MIRAI」画面を開きます。「命令」へ文章を入力し、「送信」を押してください。例えば「現在のシーンと配置されているオブジェクトを説明して」と指示できます。
 
-Codex以外でも、ローカルの仕様書を読み、Windows PowerShellとNamed Pipeを使ってJSONを送受信できるCodex相当のAIエージェント環境であれば動作する可能性があります。ただし、Codex以外の環境での動作は保証していません。
+操作仕様、確認済みの生成エイリアス、効果の学習記録、Lua・シーン・VOICEVOX・MMDの資料はプラグインに内蔵されています。利用前に`.md`ファイルをCodexへ読み込ませる必要はありません。命令に応じて必要な節を自動取得します。
+
+ボタンは待機中に「送信」、実行中に「停止」へ切り替わります。「停止」を押すと現在の処理を停止しますが、すでに完了した編集は残ります。送信した命令に必要な編集を行います。関連する一括編集は各コマンドのUndoで戻せます。進捗と結果は画面へ表示します。確認質問への回答は、元の命令と必要な条件を含めて改めて送信してください。送信ごとに新しい会話を開始します。
+
+以前の小さいドック配置が残っている場合は、AI MIRAIの表示領域を広げてください。結果欄の文章は選択してコピーできます。
+
+Codexの実行ファイルはCodexデスクトップ同梱CLIの標準配置を優先し、次にPATHから検出します。必要に応じて`CODEX_PIPE_EXE`で実行ファイル、`CODEX_PIPE_MODEL`でモデルを指定できます。指定がなければCodexの既定モデルを使います。実行ログは`%LOCALAPPDATA%\Aul2MIRAI\Codex\<実行ID>\protocol.log`へ保存され、命令と操作応答を含みます。
+
+内蔵連携で扱える操作は、下記の既存コマンドの範囲です。保存プロジェクトのファイル解析、シーン切替、既存オブジェクトの長さ変更、外部素材の生成、画像そのものの確認はこの経路では未対応です。現在フレーム画像の取得はBMPパスを返すところまでです。内蔵VOICEVOX資料の取得はできますが、`.vvproj`生成や外部アプリ起動は行いません。
+
+## 外部AIから使う
+
+従来のNamed Pipe接続も利用できます。この場合は外部AIへ[`AI_USAGE.md`](AI_USAGE.md)と、必要な生成・効果資料を読み込ませてください。通信の詳細は[`PIPE_INTERFACE.md`](PIPE_INTERFACE.md)を参照してください。Codex以外のAI環境の動作は保証していません。
 
 ## Codexから取得・設定する
 
 AviUtl2でAI MIRAIを読み込んだ状態で、PowerShell標準のNamed Pipe機能からJSON要求を送ります。専用EXEは使用しません。接続方法とJSON仕様は[`AI_USAGE.md`](AI_USAGE.md)を参照してください。
 
-AI MIRAI画面の「ヘルプ」ボタンから、既定ブラウザで[`vramwiz/Aul2MIRAI`](https://github.com/vramwiz/Aul2MIRAI)を開けます。
+プロジェクトの公開ページは[`vramwiz/Aul2MIRAI`](https://github.com/vramwiz/Aul2MIRAI)です。
 
 確認済みの取得機能:
 
@@ -59,6 +71,8 @@ AI MIRAI画面の「ヘルプ」ボタンから、既定ブラウザで[`vramwiz
 - 既存フィルターブロックを繰り返したオブジェクトの検証付き生成
 - 元オブジェクトを同位置のフィルター追加済みオブジェクトへ検証付きで置換
 - 未選択オブジェクトへの安全確認付きフォーカス移動
+- 選択オブジェクトの表示名変更・標準名への復帰（検証・Undo付き）
+- 明示した最大64個の選択オブジェクトの削除（プレビュー・Undo・削除後検証付き）
 - カーソル位置と選択範囲のプレビュー・設定・解除
 - 現在のカーソルフレームを一時BMPへレンダリングして取得
 

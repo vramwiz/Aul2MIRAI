@@ -1,4 +1,4 @@
-unit Aul2MIRAIObjectFocus;
+﻿unit Aul2MIRAIObjectFocus;
 
 // Parses, validates, and formats a safe object focus change using copied
 // scene data. The SDK object handle is resolved again by the writer.

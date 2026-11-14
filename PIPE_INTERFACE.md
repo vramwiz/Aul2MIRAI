@@ -2,6 +2,26 @@
 
 この文書は、Aul2MIRAIプラグインと外部呼び出し側の間で使用するNamed Pipe通信の開発者向け仕様を記録する。プロジェクト全体の方針と課題は[`note.md`](note.md)、Codexが実際に使用する操作手順は[`AI_USAGE.md`](AI_USAGE.md)、確認済みの生成用エイリアスは[`ALIAS_CATALOG.md`](ALIAS_CATALOG.md)へ記載する。
 
+## プラグインからCodexへの接続
+
+AI MIRAI画面の「送信」は、RIGMMakerの`RigmCodexClient.pas`を参考にした専用`codex app-server --listen stdio://`を起動する。既存のCodexデスクトップの会話へ入力を注入しない。1命令ごとに専用子プロセスと一時的な会話を作り、終了時に所有するJob Objectを閉じて子孫を含めて終了する。
+
+- Windows匿名パイプ3本を標準入力・標準出力・標準エラーへ割り当てる。標準入出力はBOMなしUTF-8のJSONL。
+- `initialize`、`initialized`、`thread/start`、`turn/start`の順に送信する。RPC応答待ちは30秒、命令全体は10分・最大64ステップ、UI要求待ちは120秒。
+- `thread/start`には`ephemeral=true`、`sandbox=read-only`、`approvalPolicy=never`を指定する。このOSサンドボックスと、ホスト側のAviUtl2編集操作は別に扱う。モデルには外部ツールを使わず構造化応答だけを返すよう指示する。
+- 各ターンの`outputSchema`は`{"action":"command|knowledge|finish","content":"文字列"}`。`command`のcontentには既存プロトコルのJSON要求、`knowledge`には内蔵資料の照会、`finish`には利用者向け結果や確認質問を入れる。
+- `knowledge`で`aliases`などトピック名だけを指定すると目次、`aliases:標準オブジェクト: 図形`のように節名を付けると該当節を返す。曖昧な部分一致には候補を返し、複数節を黙って混ぜない。
+- `command`はワーカーからUIタイマーへ文字列で渡す。SDKアクセスはUIスレッドだけで行い、応答を次のCodexターンへ返す。編集要求はホストが同内容の`preview_*`を実行し、成功時だけ元の要求を適用する。既存の`state_token`、`apply=true`、編集後の照合は維持する。
+- GUIは命令入力、状態、結果と送信・停止を兼ねる単一ボタンだけにする。編集許可チェック、ヘルプ、操作ログ表示は置かない。内部の閲覧専用フラグは検証・他の呼出側向けに残す。未対応コマンドは拒否する。
+- 停止はワーカーの停止要求と同期I/O取消しで行う。停止・失敗時にそれまでの成功済み編集を自動で巻き戻さない。AviUtl2側で実行中の1コマンドは完了する場合がある。
+- UIやSDKへワーカーの参照を渡さない。終了処理ではワーカーを停止・回収してから画面とSDK参照を解放する。
+
+`Aul2MIRAIKnowledge.rc`は7文書をRCDATAとしてビルド時に組み込み、実行時は`TResourceStream`で読む。配布時に学習文書を別ファイルとして置く必要はない。文書は保守用の正本として残し、変更したらプラグインも再ビルドする。生成された`.res`はGitへ登録しない。
+
+実行ファイルの検出は`CODEX_PIPE_EXE`、`%LOCALAPPDATA%\OpenAI\Codex\bin`、PATHの順。デスクトップ本体もcodex.exeという名前のため、同梱CLIをPATHより優先する。モデル指定は`CODEX_PIPE_MODEL`、未指定時はCodex既定値。ログは`%LOCALAPPDATA%\Aul2MIRAI\Codex\<GUID>\protocol.log`。この経路は保存ファイル解析、外部アプリ起動や素材生成を提供しない。
+
+公式仕様: [Codex App Server](https://developers.openai.com/codex/app-server)。この実装は実験的な動的ツール登録には依存せず、構造化出力と通常ターンの往復を使う。
+
 ## 基本構成
 
 - 専用クライアントEXEは作成・配布・使用しない。
@@ -76,6 +96,8 @@ AviUtl2 SDKへアクセスする処理はPipeのワーカースレッドで直�
 | `get_selected_objects` | 通常選択のフォーカス対象と複数選択対象を統合し、エフェクト設定値とともに取得する。 |
 | `get_object_details` | 最新状態の`index`を指定し、単一オブジェクトの詳細を取得する。 |
 | `get_current_frame_image` | 現在のカーソルフレームをレンダリングし、一時BMPのパスと寸法を返す。 |
+| `preview_set_object_name` / `set_object_name` | 選択オブジェクトの表示名を検証・変更する。空文字列は標準名へ戻す。 |
+| `preview_delete_objects` / `delete_objects` | 明示した最大64個の選択オブジェクトを検証・削除する。 |
 | `preview_set_object_parameter` | 選択オブジェクトの設定値変更を検証し、変更前後の値を返す。実際の変更は行わない。 |
 | `set_object_parameter` | 選択オブジェクトの単一設定値を変更し、書込み後の検証値と新しい状態指紋を返す。 |
 | `preview_set_object_parameters` | 最大64件の設定値変更を一括検証する。実際の変更は行わない。 |
@@ -150,6 +172,16 @@ AviUtl2 SDKへアクセスする処理はPipeのワーカースレッドで直�
 一括変更では、全項目の対象、選択状態、内容ハッシュ、変更前値を1件も書き込む前に検証する。同じ対象・エフェクト・項目の重複指定は`duplicate_change`として拒否する。検証後は1回の`call_edit_section_param`内で変更し、各項目を直後に再取得する。途中の書込みまたは再取得検証に失敗した場合は、そのコールバック内で適用済み項目を変更前の値へ戻す。
 
 成功応答には`change_count`、実際に値が変わる`changed_count`、各項目の`before`、`requested`、`verified`を返す。全項目が同値なら書込みを行わず、`applied=false`、`changed_count=0`となる。
+
+## オブジェクトの表示名変更・削除
+
+`preview_set_object_name` / `set_object_name`は`target_index`と`name`、`preview_delete_objects` / `delete_objects`は`target_indices`（重複なし、1～64件）を受け取る。全要求で最新の`state_token`、適用時はJSONの`apply: true`を必須とする。対象は選択中で、レイヤーがロックされていないことを確認する。エフェクトのロックはオブジェクト全体のロックとして解釈しない。
+
+`Aul2MIRAIObjectEdit.pas`は型・対象の検証、プレビュー、適用後照合、JSON応答を担当する。`Aul2MIRAIObjectEditor.pas`は1回の`call_edit_section_param`内で配置・名称・エイリアスSHA-256・選択・レイヤーロックを全件再検証し、SDKの`set_object_name` / `delete_object`を呼び出す。オブジェクトハンドルを編集コールバック外へ持ち出さない。
+
+名前は最大1,024 UTF-16コード単位で制御文字を禁止し、空文字列は標準名へ戻す。書込み後に名前と名前以外のエイリアス内容を照合し、不一致時は元の名前へ戻して再検証する。同名指定は編集しない。削除は対象全体に作用し、素材ファイルは削除しない。バッチの途中でSDKが失敗した場合は、検証済み削除件数とUndoによる復旧案内を返す。削除済みオブジェクトをエイリアスから自動再生成しない。
+
+適用後はシーンを再取得し、対象の変更・消失、総件数、対象以外の配置・名前・内容・区間・エフェクト状態を照合する。成功応答の`change.verified=true`はこの照合後にだけ返す。内蔵Codexも同じ適用直前プレビューを通り、閲覧のみの呼出しでは名前変更と削除を拒否する。MMD拡張も既存のquery / preview / applyを利用し、apply時のプレビュー名を明示的に対応付ける。
 
 ## オブジェクト移動
 

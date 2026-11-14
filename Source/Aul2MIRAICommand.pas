@@ -19,6 +19,8 @@ uses
   Aul2MIRAIFrameCapture,
   Aul2MIRAIObjectFormat,
   Aul2MIRAIObjectCreate,
+  Aul2MIRAIObjectEdit,
+  Aul2MIRAIObjectEditor,
   Aul2MIRAIObjectDuplicate,
   Aul2MIRAIObjectDuplicator,
   Aul2MIRAIObjectFocus,
@@ -725,6 +727,48 @@ begin
     BeforeIdentity, AfterIdentity);
 end;
 
+function HandleObjectEditRequest(const RequestText, Command: string): string;
+var
+  BeforeState, AfterState: TAul2MIRAIEditState; // 変更前後の編集状態
+  Before, After         : TAul2MIRAISceneSnapshot; // 変更前後の全オブジェクト
+  BeforeId, AfterId     : TAul2MIRAISnapshotIdentity; // 状態の識別情報
+  Request              : TMIRAIObjectEditRequest; // 型と適用指定を検証した要求
+  Preview              : TMIRAIObjectEditPreview; // 現在状態から作った変更予定
+  Token, Code, MessageText: string; // 要求の状態指紋と失敗理由
+  DeleteObjects, Apply  : Boolean; // 操作種別と適用要求
+  CompletedCount       : Integer; // SDKで完了を確認した件数
+begin
+  DeleteObjects := SameText(Command, AUL2MIRAI_COMMAND_DELETE_OBJECTS) or
+    SameText(Command, AUL2MIRAI_COMMAND_PREVIEW_DELETE_OBJECTS);
+  Apply := SameText(Command, AUL2MIRAI_COMMAND_SET_OBJECT_NAME) or
+    SameText(Command, AUL2MIRAI_COMMAND_DELETE_OBJECTS);
+  if not ParseObjectEditRequest(RequestText, DeleteObjects, Apply, Token, Request, Code, MessageText) then
+    Exit(BuildProtocolError(Command, Code, MessageText));
+  if not ReadCurrentEditState(EditHandle, BeforeState, MessageText) or
+    not ReadCurrentSceneObjects(EditHandle, Before, MessageText) then
+    Exit(BuildProtocolError(Command, 'read_failed', MessageText));
+  BeforeId := CreateSnapshotIdentity(BeforeState, Before);
+  if not SameText(Token, BeforeId.StateToken) then
+    Exit(BuildStateChangedError(Command, Token, BeforeId));
+  if not CreateObjectEditPreview(Before, Request, Preview, Code, MessageText) then
+    Exit(BuildProtocolError(Command, Code, MessageText));
+  if not Apply or not Preview.WillChange then
+    Exit(BuildObjectEditResponse(Command, Preview, BeforeId, BeforeId, Apply));
+  if not ApplyObjectEdit(EditHandle, Preview, CompletedCount, Code, MessageText) then
+    Exit(BuildProtocolError(Command, Code, MessageText));
+  if not ReadCurrentEditState(EditHandle, AfterState, MessageText) or
+    not ReadCurrentSceneObjects(EditHandle, After, MessageText) then
+    Exit(BuildProtocolError(Command, 'post_write_read_failed',
+      'The edit may have completed. Reacquire state before retrying. ' + MessageText));
+  if not VerifyObjectEdit(Before, After, Preview, MessageText) then
+    Exit(BuildProtocolError(Command, 'post_write_verification_failed',
+      MessageText + Format(' SDK-verified edits: %d.', [CompletedCount])));
+  AfterId := CreateSnapshotIdentity(AfterState, After);
+  QueueMIRAIViewUpdate('Object edit verified', '', 'OK',
+    Format('%s -> %d objects', [Command, CompletedCount]));
+  Result := BuildObjectEditResponse(Command, Preview, BeforeId, AfterId, True);
+end;
+
 function HandleAul2MIRAIRequest(const RequestText: string): string;
 var
   AfterEditState: TAul2MIRAIEditState;
@@ -803,6 +847,12 @@ begin
            FrameImage.FileSize, FrameImage.ElapsedMs]));
       Exit(BuildFrameImageResponse(FrameImage, Identity));
     end;
+
+    if SameText(Command, AUL2MIRAI_COMMAND_PREVIEW_OBJECT_NAME) or
+       SameText(Command, AUL2MIRAI_COMMAND_SET_OBJECT_NAME) or
+       SameText(Command, AUL2MIRAI_COMMAND_PREVIEW_DELETE_OBJECTS) or
+       SameText(Command, AUL2MIRAI_COMMAND_DELETE_OBJECTS) then
+      Exit(HandleObjectEditRequest(RequestText, Command));
 
     if SameText(Command, AUL2MIRAI_COMMAND_QUERY_EXTENSION) or
        SameText(Command, AUL2MIRAI_COMMAND_PREVIEW_EXTENSION) or

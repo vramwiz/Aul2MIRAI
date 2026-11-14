@@ -1,4 +1,4 @@
-unit Aul2MIRAIExtensionCommand;
+﻿unit Aul2MIRAIExtensionCommand;
 
 // AI MIRAI共通の安全確認を保ったまま、MMD固有操作をプロバイダーへ委譲する。
 

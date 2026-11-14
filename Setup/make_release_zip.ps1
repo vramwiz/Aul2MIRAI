@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 
 $packageName = 'Aul2MIRAI'
 $projectRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
@@ -52,6 +52,11 @@ $packageFiles = @(
     Source = Join-Path $projectRoot 'LUA_SCRIPTING.md'
     Destination = 'LUA_SCRIPTING.md'
     Description = 'Lua scripting safety guide'
+  },
+  @{
+    Source = Join-Path $projectRoot 'MMD_POSE_LEARNING.md'
+    Destination = 'MMD_POSE_LEARNING.md'
+    Description = 'MMD pose learning guide'
   }
 )
 

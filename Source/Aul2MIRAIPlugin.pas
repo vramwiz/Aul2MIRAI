@@ -1,11 +1,14 @@
 ﻿unit Aul2MIRAIPlugin;
 
+// AviUtl2のウィンドウ登録、UI通知とプラグイン全体の開始・終了を管理する。
 interface
 
 uses
   AviUtl2PluginTypes;
 
+// ホストへウィンドウとメニューを登録し、既存Named Pipeを開始する。
 procedure RegisterMIRAIPlugin(Host: PHostAppTable);
+// Codexワーカー、画面、Named Pipeの順に利用を停止して資源を解放する。
 procedure UnregisterMIRAIPlugin;
 
 implementation
@@ -43,7 +46,7 @@ begin
         if HandleMIRAIViewCommand(WParam) then
           Exit(0);
       end;
-    WM_CTLCOLORSTATIC:
+    WM_CTLCOLORSTATIC, WM_CTLCOLOREDIT, WM_CTLCOLORBTN:
       begin
         if HandleMIRAIViewControlColor(HDC(WParam), HWND(LParam), ControlBrush) then
           Exit(LRESULT(ControlBrush));
@@ -61,6 +64,12 @@ begin
     WM_AUL2MIRAI_VIEW_UPDATE:
       begin
         ApplyMIRAIViewUpdates;
+        Exit(0);
+      end;
+    WM_TIMER:
+      if WParam = 210 then
+      begin
+        PollMIRAICodex;
         Exit(0);
       end;
   end;
@@ -115,8 +124,8 @@ begin
     WS_POPUP,
     CW_USEDEFAULT,
     CW_USEDEFAULT,
-    420,
-    86,
+    520,
+    460,
     0,
     0,
     HInstance,
@@ -134,8 +143,8 @@ end;
 
 procedure UnregisterMIRAIPlugin;
 begin
-  StopMIRAIPipeServer;
   DestroyMIRAIView;
+  StopMIRAIPipeServer;
 
   if ClientWindow <> 0 then
   begin
