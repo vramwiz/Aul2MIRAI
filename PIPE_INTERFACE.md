@@ -282,6 +282,10 @@ AviUtl2 v2.10の公開SDKには、既存オブジェクトの終了フレーム�
 
 初版の拡張名は`mmd.pose`、問合せ操作は`get_model_schema`、変更操作は`set_pose`である。詳細な要求例と制限は[`AI_USAGE.md`](AI_USAGE.md)を参照する。
 
+読取専用操作`capture_diagnostic_view`は、MMDモデルDLLへ一時診断表示を開始し、AviUtl2の現在フレームをBMPへレンダリングした後、開始時のトークンで必ず解除する。対応表示は`normal`、`bones`、`bone_overlay`、`silhouette`、`finger_id`、`body_only`である。プロジェクト設定、`state_token`、Undo履歴は変更しない。
+
+診断開始と解除はC ABIの必要サイズ取得、本書込みによる同一要求2回呼出しに対して冪等である。モデル側状態は15秒で失効し、別の診断要求とは排他する。AI MIRAIは読み込み済みモジュールのうち`MMD_Model_Filter`を明示的に選び、Pose DLL内の同名C ABIへ診断要求を渡さない。
+
 ## プロジェクト別の学習内容の記録
 
 Codexまたは同等のAI環境は、AviUtl2プロジェクトを調査・操作して得た再利用可能な知識を、Markdownファイルとしてプロジェクトファイルと同じフォルダへ記録する。

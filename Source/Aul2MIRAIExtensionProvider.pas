@@ -5,13 +5,15 @@
 interface
 
 function InvokeMmdExtensionProvider(const RequestText: string;
-  out ResponseText, ErrorCode, ErrorMessage: string): Boolean;
+  out ResponseText, ErrorCode, ErrorMessage: string;
+  RequireModelHost: Boolean = False): Boolean;
 
 implementation
 
 uses
   Winapi.TlHelp32,
   Winapi.Windows,
+  System.StrUtils,
   System.SysUtils;
 
 const
@@ -23,7 +25,8 @@ type
   TMmdProviderInvoke = function(RequestUtf8, ResponseUtf8: PAnsiChar;
     ResponseCapacity: Cardinal): Integer; cdecl;
 
-function FindMmdProvider(out Invoke: TMmdProviderInvoke): Boolean;
+function FindMmdProvider(RequireModelHost: Boolean;
+  out Invoke: TMmdProviderInvoke): Boolean;
 var
   Address: Pointer;
   Entry: TModuleEntry32;
@@ -41,6 +44,9 @@ begin
     if not Module32First(Snapshot, Entry) then
       Exit;
     repeat
+      if RequireModelHost and
+         not ContainsText(string(Entry.szModule), 'MMD_Model_Filter') then
+        Continue;
       Address := GetProcAddress(Entry.hModule, 'MmdAiProviderGetVersion');
       GetVersion := TMmdProviderGetVersion(Address);
       Address := GetProcAddress(Entry.hModule, 'MmdAiProviderInvoke');
@@ -56,7 +62,8 @@ begin
 end;
 
 function InvokeMmdExtensionProvider(const RequestText: string;
-  out ResponseText, ErrorCode, ErrorMessage: string): Boolean;
+  out ResponseText, ErrorCode, ErrorMessage: string;
+  RequireModelHost: Boolean): Boolean;
 var
   Buffer: TBytes;
   Invoke: TMmdProviderInvoke;
@@ -67,10 +74,13 @@ begin
   ResponseText := '';
   ErrorCode := '';
   ErrorMessage := '';
-  if not FindMmdProvider(Invoke) then
+  if not FindMmdProvider(RequireModelHost, Invoke) then
   begin
     ErrorCode := 'extension_provider_not_found';
-    ErrorMessage := 'The MMD pose provider is not loaded.';
+    if RequireModelHost then
+      ErrorMessage := 'The MMD model diagnostic provider is not loaded.'
+    else
+      ErrorMessage := 'The MMD pose provider is not loaded.';
     Exit;
   end;
   RequestUtf8 := UTF8String(RequestText);

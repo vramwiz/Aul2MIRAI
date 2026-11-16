@@ -15,6 +15,7 @@ uses
   AviUtl2PluginCore,
   Aul2MIRAIEditStateReader,
   Aul2MIRAIEditStateTypes,
+  Aul2MIRAIDiagnosticCapture,
   Aul2MIRAIExtensionProvider,
   Aul2MIRAIObjectReader,
   Aul2MIRAIObjectTypes,
@@ -349,6 +350,16 @@ begin
   if SameText(Command, AUL2MIRAI_COMMAND_QUERY_EXTENSION) and
      SameText(Request.Operation, 'get_model_schema') then
     ProviderOperation := 'get_model_schema'
+  else if SameText(Command, AUL2MIRAI_COMMAND_QUERY_EXTENSION) and
+          SameText(Request.Operation, 'capture_diagnostic_view') then
+  begin
+    if not SameText(Effect.Name, MMD_EFFECT_MODEL) then
+      Exit(BuildProtocolError(Command, 'diagnostic_view_requires_model',
+        'Diagnostic rendering requires the MMD model display effect.'));
+    Exit(CaptureMmdDiagnosticView(Command, Identity, Request.TargetIndex,
+      Request.EffectIndex, Request.ExtensionName, Request.Operation, ModelFile,
+      PoseData, Request.PayloadText, State.CursorFrame));
+  end
   else if (SameText(Command, AUL2MIRAI_COMMAND_PREVIEW_EXTENSION) or
            SameText(Command, AUL2MIRAI_COMMAND_APPLY_EXTENSION)) and
           SameText(Request.Operation, 'set_pose') then

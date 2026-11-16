@@ -25,6 +25,17 @@
 - 試験では実機プロジェクトの編集を行っていない。新規生成・設定変更の画面経由検証、全体レイアウト、未保存プロジェクトを伴う終了操作は未確認として残す。節取得へ最適化した最新版は分離したビルド出力へ用意し、起動中のプラグインは上書きしない。
 - 最終Win64 Releaseを警告・エラーなしでビルドし、`Build\Release\Aul2MIRAI.aux2`とDLLのSHA-256一致を確認した。更新した操作ガイドを含む6リソースの原本一致と静的な要求拒否試験も成功した。文字コード点検で既存3ユニットのBOM欠落を検出し、本文を変えずUTF-8 BOMを付けた。全プロジェクト・PascalソースのBOMを確認した。
 
+## 2026-08-27
+
+- `query_object_extension`の読取操作`capture_diagnostic_view`を追加した。MMDモデルDLLで診断表示を開始し、AviUtl2の現在フレームをBMPへ取得し、成功・失敗にかかわらず解除する。
+- 読み込み済みMMDプロバイダーのうちモデルDLLを明示的に選択し、Pose DLL内の同名C ABIへ診断要求を渡さないようにした。
+- 診断キャプチャを`Aul2MIRAIDiagnosticCapture.pas`へ分離し、開始、画像取得、解除、エラー応答を既存のポーズ変更処理から独立させた。
+- MMD側の`normal`、`bones`、`bone_overlay`、`silhouette`、`finger_id`、`body_only`を、AviUtl2 v2.1.3aの`sample2.aup2`からNamed Pipeだけで取得した。
+- 大型モデルで診断描画が頂点キュー上限を超えた実例を確認し、MMD側で通常描画と材質選別を共通化した修正版の全身シルエットを再取得した。
+- `finger_id`は衣服を除外した身体表示上で、左右の親指、人差指、中指、薬指、小指が指定色へ分離されることを画像で確認した。
+- 全診断応答で`diagnostic_view_released=true`、取得前後の`state_token`一致、解除後の通常BMPが診断前とSHA-256一致することを確認した。
+- MMD Model / Pose / Aul2MIRAIのWin64 Debug / Releaseを警告0・エラー0でビルドし、Release配置から`finger_id`取得と通常表示復帰を再確認した。
+
 ## 2026-08-26
 
 - MMDモデル「ふらすこきりたん」の選択中`モデル表示`から、切り捨てなしの`標準姿勢データ`をNamed Pipeで再取得できることを確認した。

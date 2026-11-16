@@ -1,4 +1,4 @@
-# Aul2MIRAI note
+﻿# Aul2MIRAI note
 
 作業再開時に最初に見る開発メモ。プロジェクトの方針、判断、優先順位、未解決課題を中心に置く。個別インターフェースの詳細仕様は分離した文書へ記載する。
 
@@ -8,7 +8,7 @@
 - フィルターの設定値と実際の映像変化の対応は[`EFFECT_LEARNING.md`](EFFECT_LEARNING.md)に置く。
 - AviUtl2付属`lua.txt`の要点、スクリプト制御の安全規則、実機で確認したLuaの挙動は[`LUA_SCRIPTING.md`](LUA_SCRIPTING.md)に置く。
 - 全シーンの検出、実長算出、Rootへの一括配置手順は[`SCENE_LEARNING.md`](SCENE_LEARNING.md)に置く。
-- MMDモデルの骨格取得、ポーズ設計、軸方向、実機評価、既知の制限は[`MMD_POSE_LEARNING.md`](MMD_POSE_LEARNING.md)に置く。
+- MMDモデルの骨格取得、ポーズ設計、軸方向、実機評価、既知の制限は`..\MMDAIPreview\Learning\MMD_POSE_LEARNING.md`を正本とする。ローカルの[`MMD_POSE_LEARNING.md`](MMD_POSE_LEARNING.md)は移行前記録として残す。
 - VOICEVOX用台本の話者・感情変換、`.vvproj`生成、起動引数、責任範囲、実機確認結果は[`VOICEVOX_PROJECT_LEARNING.md`](VOICEVOX_PROJECT_LEARNING.md)に置く。
 - AviUtl2カタログの登録用JSON、GitHub Release、インストール、アンインストール、更新手順は[`CATALOG_REGISTRATION.md`](CATALOG_REGISTRATION.md)に置く。
 - Named Pipeの通信仕様、内部処理、接続情報、制限は [`PIPE_INTERFACE.md`](PIPE_INTERFACE.md) に置く。
@@ -46,13 +46,23 @@
 
 ## 2026-08-26 MMDオブジェクト拡張初版
 
-ポーズ作成で確認した軸方向、操作手順、実機評価、今後の学習課題は[`MMD_POSE_LEARNING.md`](MMD_POSE_LEARNING.md)を正本とする。
+ポーズ作成で確認した軸方向、操作手順、実機評価、今後の学習課題は`..\MMDAIPreview\Learning\MMD_POSE_LEARNING.md`を正本とする。
 
 - AIとの外部インターフェースはNamed Pipe `Aul2MIRAI.v1`へ統一し、`query_object_extension`、`preview_object_extension_change`、`apply_object_extension_change`を追加した。初版は拡張名`mmd.pose`を扱う。
 - 現在プロセスの読み込み済みモジュールからMMDのバージョン付きC ABIを探索する。AI MIRAIは選択対象、`state_token`、設定値書込み、適用後照合、Undoを担当し、MMDへモデル固有の解釈を委譲する。
 - `モデル表示.標準姿勢データ`と`ポーズ.姿勢データ`を対象に、MMDが返した正規化済み姿勢だけを書き込む。存在しないボーンなどの意味エラーはプレビュー時点で拒否する。
 - Model / Pose / Aul2MIRAIのWin64 Releaseビルドは警告・エラーなし。実機用配置後、Named Pipeから実モデル224ボーン・IK 4本の取得、奥行き回転を含む3ボーンの非破壊プレビュー、未知ボーン拒否、一時的な頭ボーン変更と適用後照合に成功した。試験後は元姿勢へ戻し、`state_token`が試験前と一致することを確認した。
 - 設定値APIの16,384文字上限と、ポーズ変更後の描画世代同期は次段階の課題とする。
+- AI専用診断ビューとして`normal`、`bones`、`bone_overlay`、`silhouette`、`finger_id`、`body_only`を追加した。診断開始、Pipeフレーム取得、必須解除を一体処理し、プロジェクト設定とUndoを変更しない。
+- AviUtl2 v2.1.3aの実モデルで全6表示を取得し、指5色、身体のみ、骨格、全身シルエットを確認した。取得前後の`state_token`と、解除前後の通常BMP SHA-256が一致した。
+
+### 2026-08-27 現在のMMDポーズ確認状態
+
+- 実モデル「ふらすこ式風きりたん」で試作した両腕V字の姿勢を、ユーザー確認済みポーズ「万歳」として確定した。確定値と成立条件は`..\MMDAIPreview\Learning\MMD_POSE_LEARNING.md`を正本とする。
+- `replace`の非破壊プレビューで頭Y約`15.00`、左右手首Y約`16.90`、手首X約`±4.46`を確認してから適用した。適用応答は`applied=true`、14ボーン解決、MMDの`pose_data`と書込み後`verified`が一致した。
+- 適用後にAI診断フラグで全6表示を取得した。左右色分け骨格は対称で腕の交差がなく、各診断は必ず解除された。診断前後の状態指紋は`sha256:bd48dc57ac8475aab947b787853390af620c070af7aa11eb42e2da2a2405e198`で不変、通常BMPのSHA-256は前後とも`4A134D79EA6850B318514FC0C752C83724B1BB24A93F9BB25D1D7559766342D1`だった。
+- `sample2.aup2`の選択中`モデル表示.標準姿勢データ`には万歳を適用したが、プロジェクトファイルは保存していない。再開時は保存済みと仮定せず、必要なら確定値から再適用する。
+- 現在の構図では頭頂と手先が画面上端から切れる。次の診断ビュー改善候補は、プロジェクト設定を変えずに全ボーンを収める一時的な自動フィットである。
 
 ## 旧チェックポイント（2026-07-24、学習再開時の参照）
 

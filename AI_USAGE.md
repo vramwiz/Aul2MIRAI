@@ -649,6 +649,43 @@ MMDの「モデル表示」または「ポーズ」エフェクトを選択し�
 
 現時点ではAviUtl2設定値APIの上限に合わせ、現在姿勢と生成後の`pose_data`を各16,384文字以内に限定します。また、ポーズ適用完了と次のフレーム画像取得の描画世代を同期する仕組みは未実装です。画像確認では不完全な1枚を採用せず、必要に応じて再取得してください。
 
+### MMD AI専用診断ビュー
+
+選択中の`モデル表示`を、プロジェクト設定へ保存しないAI確認専用表示で一時レンダリングできます。`query_object_extension`へ`operation: "capture_diagnostic_view"`と表示種別を指定します。
+
+```json
+{
+  "protocol": "Aul2MIRAI",
+  "protocol_version": 1,
+  "command": "query_object_extension",
+  "state_token": "sha256:...",
+  "target_index": 1,
+  "effect_index": 0,
+  "extension": "mmd.pose",
+  "operation": "capture_diagnostic_view",
+  "payload": {
+    "pass": "finger_id"
+  }
+}
+```
+
+利用できる`pass`は次の6種類です。
+
+| pass | 表示 |
+| --- | --- |
+| `normal` | 通常のMMD表示 |
+| `bones` | 骨格だけ。モデル本人の左を青、右を赤、中央を黄で表示 |
+| `bone_overlay` | 単色モデルへ骨格を重ねる |
+| `silhouette` | テクスチャを除外した明色の全身シルエット |
+| `finger_id` | 衣服を除外し、親指=赤、人差指=黄、中指=緑、薬指=青、小指=紫で表示。右手は暗くする |
+| `body_only` | 材質名から推定した身体だけを肌色で表示 |
+
+成功応答は通常の`state_token`に加え、`image.file_path`、`pass`、`temporary=true`、`changes_project_state=false`、`diagnostic_view_released=true`を返します。`finger_id`と骨格表示では`result.legend`も返します。
+
+AI MIRAIはMMDモデルDLLへ診断開始を要求し、現在フレームをレンダリングし、成功・失敗にかかわらず解除トークンで診断状態を解放します。診断表示は設定値とUndo履歴を変更しません。
+
+`body_only`と`finger_id`の身体抽出はPMX材質名によるヒューリスティックです。衣服下に身体メッシュがないモデルや独自の材質名では欠落する可能性があるため、完成判定には必ず`normal`を併用してください。現在はモデルパス単位の一時状態なので、同じPMXを使う複数個体が同一フレームに見えている場合は全個体が同じ診断表示になります。
+
 ## エラー形式
 
 ```json
