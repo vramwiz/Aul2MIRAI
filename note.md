@@ -428,8 +428,6 @@ AviUtl2 v2.10公開SDKには既存オブジェクトへエフェクトを追加�
 - `Source\Lib\AviUtl2Plugin\plugin2.h`: AviUtl2 v2.10公式SDKヘッダー。SDK仕様の正本として参照する。
 - `Source\Lib\AviUtl2Plugin\AviUtl2PluginTypes.pas`: `Aul2AudioFilter`を参考にしたAviUtl2汎用プラグインSDKのDelphi型定義。新しいAPIを追加するときは `plugin2.h` と照合する。
 - `Source\Lib\AviUtl2Plugin\AviUtl2PluginCore.pas`: 編集ハンドル、プロジェクトハンドル、編集状態取得を共有するDelphi共通ユニット。必要な機能を実装する段階でビルド対象へ追加する。
-- `Source\Lib\FFmpeg\FFmpegApi.pas`: FFmpeg 8.1系DLLの型定義、関数ポインタ、動的ロード処理。
-- `Source\Lib\FFmpeg`: FFmpeg 8.1.1のAPI定義、実行時DLL、ライセンス文書。詳細は同フォルダの `README.md` を参照する。
 - `Win64\Debug` / `Win64\Release`: DelphiのDCUなどの中間出力。
 - `C:\ProgramData\aviutl2\Plugin\Aul2MIRAI`: Debug / Releaseのプラグイン出力先。
 
@@ -479,17 +477,6 @@ Setup\make_release_zip.bat
 - ZIP内は`Aul2MIRAI`フォルダをルートとし、`Aul2MIRAI.aux2`、`README.md`、`AI_USAGE.md`、`PIPE_INTERFACE.md`、`ALIAS_CATALOG.md`、`EFFECT_LEARNING.md`、`VOICEVOX_PROJECT_LEARNING.md`を含める。
 - 将来README、ライセンス、DLLなどが必要になった場合は、`Setup\make_release_zip.ps1`の`packageFiles`へ追加する。
 
-## FFmpeg
-
-- VideoMinerからコピーした `FFmpegApi.pas` を低レベルAPI境界として使う。
-- FFmpeg機能を有効にするまでは `Aul2MIRAI.dpr` と `.dproj` のビルド対象へ追加しない。
-- 現在のAPIユニットは、`avutil-60.dll`、`swresample-6.dll`、`swscale-9.dll`、`avcodec-62.dll`、`avformat-62.dll`、`avfilter-11.dll` をロードする。
-- FFmpeg DLLは `Aul2MIRAI.aux2` と同じフォルダへ配置する。`Source\Lib` やサブフォルダのままではロードされない。
-- FFmpegのレコード配置と関数宣言はFFmpeg 8.1系DLLに対応している。DLLのメジャーバージョンだけを入れ替えない。
-- FFmpeg呼び出しから返されたフレーム、パケット、コンテキストは、対応するFFmpeg APIで確実に解放する。
-- デコードはAviUtl2のUIスレッドを長時間ブロックしない構成にする。終了処理ではデコード処理を止めてからDLL利用リソースを解放する。
-- FFmpegを同梱して配布するときは `Source\Lib\FFmpeg\LICENSE` と配布元の説明を確認し、必要なライセンス文書を同梱する。
-
 ## AviUtl2実機確認
 
 - AviUtl2が `Aul2MIRAI.aux2` を正常に読み込むことを確認する。
@@ -520,3 +507,4 @@ Setup\make_release_zip.bat
 - コピーした `Source\Lib` のコードを変更する場合は、変更理由とAviUtl2 SDKとの互換性を確認する。
 - SDK境界の関数シグネチャ、レコード配置、アラインメント、呼出規約を推測で変更しない。
 - 未使用ユニット、古いコピー、ビルド対象外コードをプロジェクト内へ残さない。
+- 再生成できる `Win64`、`Build`、`Aul2MIRAI.res`、`Aul2MIRAIKnowledge.res` などのビルド成果物はGitへ登録しない。

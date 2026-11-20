@@ -12,6 +12,9 @@ __history/
 *.tds 
 *.dsk 
 Build/
+/Win64/
+/Aul2MIRAI.res
+*.rsm
 Aul2MIRAIKnowledge.res
 !Setup/*.bat 
 .DS_Store 

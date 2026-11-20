@@ -2,6 +2,13 @@
 
 完了済みの実装と実機確認結果を日付順に記録する。現在の方針と未解決課題は[`note.md`](note.md)、通信仕様は[`PIPE_INTERFACE.md`](PIPE_INTERFACE.md)、確認済みの生成用エイリアスは[`ALIAS_CATALOG.md`](ALIAS_CATALOG.md)を参照する。
 
+## 2026-11-20
+
+- Gitへ登録されていた生成リソース、旧Releaseプラグイン、Debugシンボルを削除し、`Win64`、`Aul2MIRAI.res`、`.rsm`を除外対象へ追加した。バージョン情報と内蔵資料のリソースはビルド時に再生成する。
+- ソース、ビルド設定、配布処理から参照されていなかったFFmpegのAPIユニット、付属文書、ローカルの実行時DLLを削除した。開発メモから未導入のFFmpegに関する説明も除いた。
+- ローカルの旧ビルド出力、IDE履歴、初期Git設定用バッチ、古い配布ZIPを削除した。中間ファイルを使い回さずWin64 Releaseをビルドし、警告0・エラー0と、DLL・aux2のSHA-256一致を確認した。
+- `Validation\ObjectEditCheck.dpr`と`Validation\CodexIntegrationCheck.dpr --static`が成功した。名前変更・削除の検証、7内蔵資料の原本一致、閲覧制限と不正要求の拒否を再確認した。
+
 ## 2026-11-14
 
 - 公開mainの「カタログを学習」「MMDを学習」を取り込み、既存のCodex直接連携へ統合した。MMD資料を含む7文書を内蔵し、query / preview / applyの拡張コマンドをCodexブリッジからも利用できるようにした。
